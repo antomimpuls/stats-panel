@@ -74,8 +74,8 @@
   <script>
     // ===== НАСТРОЙКИ =====
     const API_KEY         = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
-    const SPREADSHEET_ID  = '10W4LpgK3NGEIOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
-    const RANGE           = 'Sites Statistics!A:E';   // <-- исправлено
+    const SPREADSHEET_ID  = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
+    const RANGE = 'data!A:E';
 
     // ===== ГЛАВНАЯ ФУНКЦИЯ =====
     async function loadStats() {
@@ -89,9 +89,8 @@
           return;
         }
 
-        const rows = data.values.slice(1); // без заголовка
+        const rows = data.values.slice(1);
 
-        // Агрегация
         const stats = {};
         let totalVisits = 0;
         let totalClicks = 0;
@@ -102,7 +101,6 @@
           if (date > lastVisit) lastVisit = date;
 
           if (!stats[site]) stats[site] = { visits: 0, clicks: 0, last: new Date(0) };
-
           stats[site].visits += parseInt(v) || 0;
           stats[site].clicks += parseInt(c) || 0;
           if (date > stats[site].last) stats[site].last = date;
@@ -111,13 +109,11 @@
         totalVisits = Object.values(stats).reduce((s, x) => s + x.visits, 0);
         totalClicks = Object.values(stats).reduce((s, x) => s + x.clicks, 0);
 
-        // UI
-        document.getElementById('totalVisits').textContent  = totalVisits;
-        document.getElementById('totalClicks').textContent  = totalClicks;
-        document.getElementById('uniqueSites').textContent  = Object.keys(stats).length;
-        document.getElementById('lastUpdate').textContent   = lastVisit.toLocaleString();
+        document.getElementById('totalVisits').textContent = totalVisits;
+        document.getElementById('totalClicks').textContent = totalClicks;
+        document.getElementById('uniqueSites').textContent = Object.keys(stats).length;
+        document.getElementById('lastUpdate').textContent  = lastVisit.toLocaleString();
 
-        // Таблица
         const tbody = document.querySelector('#sitesTable tbody');
         tbody.innerHTML = '';
         Object.entries(stats)
@@ -132,7 +128,6 @@
             tbody.appendChild(tr);
           });
 
-        // График по дням
         const daily = {};
         rows.forEach(([, v, c, ts, dateOnly]) => {
           const day = dateOnly || new Date(ts).toISOString().split('T')[0];
@@ -170,8 +165,6 @@
     }
 
     function showError(msg) { document.body.innerHTML = `<div class="error">${msg}</div>`; }
-
-    // Старт
     loadStats();
   </script>
 </body>
