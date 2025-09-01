@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Панель статистики</title>
-  <!-- Исправлено: убраны лишние пробелы -->
+  <!-- Исправлено: убраны пробелы в ссылке -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -115,12 +115,12 @@
     // === НАСТРОЙКИ ===
     const API_KEY = "AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI";
     const SPREADSHEET_ID = "10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU";
-    const RANGE = "'Sites Statistics'!A:E"; // A:site, B:visitors, C:clicks_whatsapp, D:timestamp, E:date_only
+    const RANGE = '"Sites Statistics"!A:E'; // Исправлено: двойные кавычки для имени с пробелом
 
     // === ГЛАВНАЯ ФУНКЦИЯ ===
     async function loadStats() {
       try {
-        // Исправлено: убраны лишние пробелы в URL
+        // Исправлено: убраны пробелы в URL
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
         const response = await fetch(url);
         const data = await response.json();
@@ -223,6 +223,4 @@
     loadStats();
   </script>
 </body>
-
 </html>
-
