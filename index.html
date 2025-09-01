@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Панель статистики</title>
-  <!-- Исправлено: убраны пробелы в ссылке -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -14,10 +13,7 @@
       margin: 0;
       padding: 20px;
     }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1200px; margin: 0 auto; }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -30,37 +26,13 @@
       border-radius: 12px;
       text-align: center;
     }
-    .card h3 {
-      margin: 0 0 10px;
-      color: #b388eb;
-    }
-    .card p {
-      font-size: 24px;
-      margin: 0;
-      font-weight: bold;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #333;
-    }
-    th {
-      background: #121218;
-      color: #b388eb;
-    }
-    tr:hover {
-      background: #1f1f2a;
-    }
-    .error {
-      color: #ff4757;
-      text-align: center;
-      padding: 20px;
-    }
+    .card h3 { margin: 0 0 10px; color: #b388eb; }
+    .card p { font-size: 24px; margin: 0; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+    th { background: #121218; color: #b388eb; }
+    tr:hover { background: #1f1f2a; }
+    .error { color: #ff4757; text-align: center; padding: 20px; }
     #chartContainer {
       background: #1a1a25;
       padding: 20px;
@@ -74,22 +46,10 @@
     <h1>📊 Централизованная панель статистики</h1>
 
     <div class="stats">
-      <div class="card">
-        <h3>Всего визитов</h3>
-        <p id="totalVisits">—</p>
-      </div>
-      <div class="card">
-        <h3>Кликов WhatsApp</h3>
-        <p id="totalClicks">—</p>
-      </div>
-      <div class="card">
-        <h3>Уникальных сайтов</h3>
-        <p id="uniqueSites">—</p>
-      </div>
-      <div class="card">
-        <h3>Последнее обновление</h3>
-        <p id="lastUpdate">—</p>
-      </div>
+      <div class="card"><h3>Всего визитов</h3><p id="totalVisits">—</p></div>
+      <div class="card"><h3>Кликов WhatsApp</h3><p id="totalClicks">—</p></div>
+      <div class="card"><h3>Уникальных сайтов</h3><p id="uniqueSites">—</p></div>
+      <div class="card"><h3>Последнее обновление</h3><p id="lastUpdate">—</p></div>
     </div>
 
     <h2>Статистика по сайтам</h2>
@@ -112,81 +72,77 @@
   </div>
 
   <script>
-    // === НАСТРОЙКИ ===
-    const API_KEY = "AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI";
-    const SPREADSHEET_ID = "10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU";
-    const RANGE = '"Sites Statistics"!A:E'; // Исправлено: двойные кавычки для имени с пробелом
+    // ===== НАСТРОЙКИ =====
+    const API_KEY         = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
+    const SPREADSHEET_ID  = '10W4LpgK3NGEIOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
+    const RANGE           = 'Sites Statistics!A:E';   // <-- исправлено
 
-    // === ГЛАВНАЯ ФУНКЦИЯ ===
+    // ===== ГЛАВНАЯ ФУНКЦИЯ =====
     async function loadStats() {
       try {
-        // Исправлено: убраны пробелы в URL
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const res   = await fetch(url);
+        const data  = await res.json();
 
-        if (!data.values || data.values.length === 0) {
-          showError("Нет данных в таблице");
+        if (!data.values || data.values.length < 2) {
+          showError('В таблице нет данных');
           return;
         }
 
         const rows = data.values.slice(1); // без заголовка
 
-        // Агрегация данных
+        // Агрегация
         const stats = {};
         let totalVisits = 0;
         let totalClicks = 0;
-        let lastVisit = new Date(0);
+        let lastVisit   = new Date(0);
 
-        rows.forEach(row => {
-          const [site, visitors, clicks, timestamp] = row;
-          const date = new Date(timestamp);
+        rows.forEach(([site, v, c, ts]) => {
+          const date = new Date(ts);
           if (date > lastVisit) lastVisit = date;
 
-          if (!stats[site]) {
-            stats[site] = { visits: 0, clicks: 0, last: new Date(0) };
-          }
-          stats[site].visits += parseInt(visitors) || 0;
-          stats[site].clicks += parseInt(clicks) || 0;
+          if (!stats[site]) stats[site] = { visits: 0, clicks: 0, last: new Date(0) };
+
+          stats[site].visits += parseInt(v) || 0;
+          stats[site].clicks += parseInt(c) || 0;
           if (date > stats[site].last) stats[site].last = date;
         });
 
-        // Общие данные
-        totalVisits = Object.values(stats).reduce((sum, s) => sum + s.visits, 0);
-        totalClicks = Object.values(stats).reduce((sum, s) => sum + s.clicks, 0);
+        totalVisits = Object.values(stats).reduce((s, x) => s + x.visits, 0);
+        totalClicks = Object.values(stats).reduce((s, x) => s + x.clicks, 0);
 
-        // Обновляем интерфейс
-        document.getElementById("totalVisits").textContent = totalVisits;
-        document.getElementById("totalClicks").textContent = totalClicks;
-        document.getElementById("uniqueSites").textContent = Object.keys(stats).length;
-        document.getElementById("lastUpdate").textContent = lastVisit.toLocaleString();
+        // UI
+        document.getElementById('totalVisits').textContent  = totalVisits;
+        document.getElementById('totalClicks').textContent  = totalClicks;
+        document.getElementById('uniqueSites').textContent  = Object.keys(stats).length;
+        document.getElementById('lastUpdate').textContent   = lastVisit.toLocaleString();
 
-        // Заполняем таблицу
-        const tbody = document.querySelector("#sitesTable tbody");
-        tbody.innerHTML = "";
-        Object.entries(stats).forEach(([site, data]) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${site}</td>
-            <td>${data.visits}</td>
-            <td>${data.clicks}</td>
-            <td>${data.last.toLocaleString()}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+        // Таблица
+        const tbody = document.querySelector('#sitesTable tbody');
+        tbody.innerHTML = '';
+        Object.entries(stats)
+          .sort(([,a],[,b]) => b.visits - a.visits)
+          .forEach(([site, d]) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${site}</td>
+              <td>${d.visits}</td>
+              <td>${d.clicks}</td>
+              <td>${d.last.toLocaleString()}</td>`;
+            tbody.appendChild(tr);
+          });
 
         // График по дням
         const daily = {};
-        rows.forEach(row => {
-          const [site, visitors, clicks, timestamp, date_only] = row;
-          const date = date_only || new Date(timestamp).toISOString().split('T')[0];
-          if (!daily[date]) daily[date] = { visits: 0, clicks: 0 };
-          daily[date].visits += parseInt(visitors) || 0;
-          daily[date].clicks += parseInt(clicks) || 0;
+        rows.forEach(([, v, c, ts, dateOnly]) => {
+          const day = dateOnly || new Date(ts).toISOString().split('T')[0];
+          if (!daily[day]) daily[day] = { visits: 0, clicks: 0 };
+          daily[day].visits += parseInt(v) || 0;
+          daily[day].clicks += parseInt(c) || 0;
         });
 
         const dates = Object.keys(daily).sort();
-        new Chart(document.getElementById("dailyChart"), {
+        new Chart(document.getElementById('dailyChart'), {
           type: 'line',
           data: {
             labels: dates,
@@ -195,14 +151,14 @@
                 label: 'Визиты',
                 data: dates.map(d => daily[d].visits),
                 borderColor: '#8a6fbf',
-                backgroundColor: 'rgba(138, 111, 191, 0.1)',
+                backgroundColor: 'rgba(138,111,191,0.1)',
                 tension: 0.3
               },
               {
                 label: 'Клики WhatsApp',
                 data: dates.map(d => daily[d].clicks),
                 borderColor: '#b388eb',
-                backgroundColor: 'rgba(179, 136, 235, 0.1)',
+                backgroundColor: 'rgba(179,136,235,0.1)',
                 tension: 0.3
               }
             ]
@@ -210,16 +166,12 @@
           options: { responsive: true }
         });
 
-      } catch (error) {
-        showError("Ошибка: " + error.message);
-      }
+      } catch (e) { showError('Ошибка: ' + e.message); }
     }
 
-    function showError(msg) {
-      document.body.innerHTML = `<div class="error">${msg}</div>`;
-    }
+    function showError(msg) { document.body.innerHTML = `<div class="error">${msg}</div>`; }
 
-    // Загрузка при старте
+    // Старт
     loadStats();
   </script>
 </body>
