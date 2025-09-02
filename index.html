@@ -169,6 +169,15 @@
       margin: 10px 0;
       text-align: center;
     }
+
+    .warning-message {
+      background: #ff9800;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -213,32 +222,55 @@
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
-    const RANGE = 'data!A:E';
+    const DATA_RANGE = 'data!A:E'; // Диапазон с основными данными
+    const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
 
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
-    let rawData = [];
-    let comments = JSON.parse(localStorage.getItem('siteComments') || '{}');
+    let rawData = []; // Данные из Google Sheets
+    let comments = {}; // Комментарии из Google Sheets
     let isResizing = false;
     let currentColumn = null;
     let startX = 0;
     let startWidth = 0;
 
-    // ===== ГЛАВНАЯ ФУНКЦИЯ =====
+    // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-        const res = await fetch(url);
-        const data = await res.json();
+        document.body.classList.add('loading');
+        showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
+
+        // Загружаем основные данные
+        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
+        const dataRes = await fetch(dataUrl);
+        const data = await dataRes.json();
         if (!data.values || data.values.length < 2){
           showError('В таблице нет данных');
           return;
         }
         rawData = data.values.slice(1);
+
+        // Загружаем комментарии
+        const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
+        const commentsRes = await fetch(commentsUrl);
+        const commentsData = await commentsRes.json();
+        comments = {}; // Сбрасываем локальный кэш
+        if (commentsData.values && commentsData.values.length > 1) {
+            // Начинаем с 1, чтобы пропустить заголовки
+            commentsData.values.slice(1).forEach(([site, comment]) => {
+                if (site) { // Проверяем, что сайт указан
+                    comments[site] = comment || ''; // Сохраняем комментарий или пустую строку
+                }
+            });
+        }
+
         renderTable();
+        hideMessage(); // Скрываем сообщение после загрузки
       } catch (e){ 
         showError('Ошибка загрузки: '+ e.message);
         console.error('Ошибка загрузки:', e);
+      } finally {
+        document.body.classList.remove('loading');
       }
     }
 
@@ -299,177 +331,140 @@
             <td>${d.clicks}</td>
             <td>
               <input type="text" class="comment-input" value="${comments[site] || ''}" 
-                     placeholder="Комментарий" data-site="${site}"
-                     onchange="saveComment('${site}', this.value)">
+                     placeholder="Комментарий" data-site="${site}">
             </td>
             <td>${d.last.getTime() > 0 ? d.last.toLocaleString() : 'Нет данных'}</td>
             <td>
               <button class="action-btn" onclick="resetSiteStats('${site}')">
                 <i class="fas fa-eraser"></i> Сбросить
               </button>
-              <button class="action-btn" style="background: #ff4757; margin-left: 5px;" onclick="deleteSite('${site}')">
-                <i class="fas fa-trash"></i> Удалить
-              </button>
+              <!-- Кнопка удаления убрана, так как мы не хотим удалять из таблицы -->
             </td>`;
           tbody.appendChild(tr);
+
+          // Добавляем обработчик события change для нового input
+          const inputElement = tr.querySelector('.comment-input');
+          inputElement.addEventListener('change', (e) => {
+              saveComment(site, e.target.value);
+          });
         });
     }
 
     // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ =====
-    function saveComment(site, comment) {
-      comments[site] = comment;
-      localStorage.setItem('siteComments', JSON.stringify(comments));
-    }
-
-    // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ =====
-    async function resetSiteStats(site) {
-      if(!confirm(`Вы уверены, что хотите сбросить статистику для сайта ${site}? Данные будут обнулены, но сайт останется в списке.`)) return;
-      
+    async function saveComment(site, comment) {
       try {
-        document.body.classList.add('loading');
-        
-        // Используем Google Apps Script для сброса
+        // Обновляем локальную копию
+        comments[site] = comment;
+
+        // Отправляем данные на сервер для сохранения
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            action: 'resetSite',
+            action: 'saveComment',
             site: site,
-            spreadsheetId: SPREADSHEET_ID
+            comment: comment,
+            spreadsheetId: SPREADSHEET_ID,
+            commentsRange: COMMENTS_RANGE
           })
         });
-        
+
         if (!response.ok) {
-          throw new Error('Ошибка HTTP: ' + response.status);
+          throw new Error('Ошибка HTTP при сохранении комментария: ' + response.status);
         }
-        
+
         const result = await response.json();
-        
-        if (result.success) {
-          showMessage(`Статистика для сайта ${site} успешно сброшена!`);
-          // Обновляем локальные данные
-          rawData = rawData.map(row => {
-            if (row[0] === site) {
-              return [site, '0', '0', new Date().toISOString(), new Date().toISOString().split('T')[0]];
-            }
-            return row;
-          });
-          renderTable();
-        } else {
-          throw new Error(result.error || 'Неизвестная ошибка');
+        if (!result.success) {
+          throw new Error(result.error || 'Неизвестная ошибка при сохранении комментария');
         }
+
+        // console.log(`Комментарий для ${site} сохранен.`);
+      } catch (error) {
+        console.error('Ошибка при сохранении комментария:', error);
+        alert('Ошибка при сохранении комментария: ' + error.message);
+      }
+    }
+
+    // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
+    function resetSiteStats(site) {
+      if(!confirm(`Вы уверены, что хотите сбросить статистику для сайта ${site} ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.`)) return;
+      
+      try {
+        document.body.classList.add('loading');
+        
+        // Обновляем локальные данные rawData, обнуляя статистику для конкретного сайта
+        rawData = rawData.map(row => {
+          if (row[0] === site) {
+            // Сохраняем сайт, дату, но обнуляем визиты и клики
+            // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
+            return [site, '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
+          }
+          return row;
+        });
+        
+        renderTable(); // Перерисовываем таблицу с обновленными данными
+        showMessage(`Статистика для сайта ${site} сброшена в панели!`);
         
       } catch (error) {
-        console.error('Ошибка при сбросе статистики:', error);
-        alert('Ошибка при сбросе статистики: ' + error.message);
+        console.error('Ошибка при сбросе статистики в панели:', error);
+        alert('Ошибка при сбросе статистики в панели: ' + error.message);
       } finally {
         document.body.classList.remove('loading');
       }
     }
 
-    async function resetAllStats() {
-      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Все данные будут обнулены, но сайты останутся в списке.')) return;
+    function resetAllStats() {
+      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
       
       try {
         document.body.classList.add('loading');
         
-        // Используем Google Apps Script для полного сброса
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'resetAll',
-            spreadsheetId: SPREADSHEET_ID
-          })
+        // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
+        rawData = rawData.map(row => {
+          // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
+          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
         
-        if (!response.ok) {
-          throw new Error('Ошибка HTTP: ' + response.status);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showMessage('Вся статистика успешно сброшена!');
-          // Обновляем локальные данные
-          rawData = rawData.map(row => {
-            return [row[0], '0', '0', new Date().toISOString(), new Date().toISOString().split('T')[0]];
-          });
-          renderTable();
-        } else {
-          throw new Error(result.error || 'Неизвестная ошибка');
-        }
+        renderTable(); // Перерисовываем таблицу с обновленными данными
+        showMessage('Вся статистика сброшена в панели!');
         
       } catch (error) {
-        console.error('Ошибка при сбросе всей статистики:', error);
-        alert('Ошибка при сбросе всей статистики: ' + error.message);
-      } finally {
-        document.body.classList.remove('loading');
-      }
-    }
-
-    // ===== ФУНКЦИЯ УДАЛЕНИЯ САЙТА =====
-    async function deleteSite(site) {
-      if(!confirm(`Вы уверены, что хотите полностью удалить сайт ${site} из системы? Это действие нельзя отменить!`)) return;
-      
-      try {
-        document.body.classList.add('loading');
-        
-        // Используем Google Apps Script для удаления
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'deleteSite',
-            site: site,
-            spreadsheetId: SPREADSHEET_ID
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Ошибка HTTP: ' + response.status);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          showMessage(`Сайт ${site} успешно удален!`);
-          // Удаляем комментарий сайта
-          delete comments[site];
-          localStorage.setItem('siteComments', JSON.stringify(comments));
-          // Перезагружаем данные
-          await loadStats();
-        } else {
-          throw new Error(result.error || 'Неизвестная ошибка');
-        }
-        
-      } catch (error) {
-        console.error('Ошибка при удалении сайта:', error);
-        alert('Ошибка при удалении сайта: ' + error.message);
+        console.error('Ошибка при сбросе всей статистики в панели:', error);
+        alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
       } finally {
         document.body.classList.remove('loading');
       }
     }
 
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-    function showMessage(message) {
-      // Создаем временное сообщение об успехе
+    function showMessage(message, type = 'success') {
+      hideMessage(); // Удаляем предыдущее сообщение, если оно есть
       const messageDiv = document.createElement('div');
-      messageDiv.className = 'success-message';
+      messageDiv.className = type === 'success' ? 'success-message' : 'warning-message';
       messageDiv.textContent = message;
+      messageDiv.id = 'tempMessage'; // Добавляем ID для удобства удаления
       document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
       
-      // Удаляем сообщение через 3 секунды
-      setTimeout(() => {
-        messageDiv.remove();
-      }, 3000);
+      if (type === 'success') {
+          // Удаляем сообщение об успехе через 3 секунды
+          setTimeout(() => {
+              if (messageDiv.parentNode) { // Проверяем, существует ли элемент
+                  messageDiv.remove();
+              }
+          }, 3000);
+      }
+      // Предупреждающие сообщения (например, о загрузке) удаляются вручную
     }
+
+    function hideMessage() {
+        const existingMessage = document.getElementById('tempMessage');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+    }
+
 
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
@@ -552,4 +547,3 @@
   </script>
 </body>
 </html>
-
