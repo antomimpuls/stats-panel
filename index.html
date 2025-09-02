@@ -203,7 +203,6 @@
     .column-header.drag-over-right {
         border-right: 2px solid var(--accent) !important;
     }
-
     .reorder-info {
         font-size: 0.8em;
         color: #888;
@@ -223,6 +222,9 @@
         <button class="btn reset" id="resetAllBtn">
           <i class="fas fa-trash"></i> Сбросить статистику везде
         </button>
+         <button class="btn" id="resetOrderBtn">
+          <i class="fas fa-undo"></i> Сбросить порядок
+        </button>
       </div>
     </div>
     <div id="dateFilter">
@@ -232,7 +234,7 @@
       <button class="quickDate" data-offset="-1">Вчера</button>
       <button class="quickDate" data-offset="0">Сегодня</button>
     </div>
-    <p class="reorder-info">Перетаскивайте строки для изменения порядка. Перетаскивайте заголовки столбцов влево/вправо для изменения порядка столбцов.</p>
+     <p class="reorder-info">Перетаскивайте строки для изменения порядка. Перетаскивайте заголовки столбцов влево/вправо для изменения порядка столбцов. Порядок сохраняется при перезагрузке.</p>
     <table id="sitesTable">
       <thead>
         <tr id="tableHeaderRow">
@@ -253,6 +255,11 @@
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
     // Убедитесь, что URL не содержит пробелов и не заканчивается на /
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+
+    // ===== КЛЮЧИ ДЛЯ LOCAL STORAGE =====
+    const COLUMN_ORDER_KEY = 'statsPanelColumnOrder';
+    const ROW_ORDER_KEY = 'statsPanelRowOrder'; // Новый ключ для порядка строк
+
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
     let comments = {}; // Комментарии из Google Sheets
@@ -263,12 +270,17 @@
     let tableData = []; // Массив объектов для отображения в таблице
     let columnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'lastVisit', 'actions']; // Порядок колонок по умолчанию
     let originalColumnOrder = [...columnOrder]; // Сохраняем оригинальный порядок
+    let rowOrder = []; // Массив для хранения пользовательского порядка строк (сайтов)
 
     // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
+
+        // Загружаем сохраненный порядок из localStorage
+        loadSavedOrder();
+
         // Загружаем основные данные
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
@@ -292,15 +304,69 @@
             });
         }
         processTableData(); // Обрабатываем данные для таблицы
-        renderTable(); // Рендерим таблицу с учетом текущего порядка столбцов
+        renderTable(); // Рендерим таблицу с учетом текущего порядка столбцов и строк
         hideMessage(); // Скрываем сообщение после загрузки
-      } catch (e){ 
+      } catch (e){
         showError('Ошибка загрузки: '+ e.message);
         console.error('Ошибка загрузки:', e);
       } finally {
         document.body.classList.remove('loading');
       }
     }
+
+    // ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ ПОРЯДКА =====
+    function saveColumnOrder() {
+        try {
+            localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(columnOrder));
+        } catch (e) {
+            console.error("Не удалось сохранить порядок столбцов в localStorage", e);
+        }
+    }
+
+    function saveRowOrder() {
+        try {
+            localStorage.setItem(ROW_ORDER_KEY, JSON.stringify(rowOrder));
+        } catch (e) {
+            console.error("Не удалось сохранить порядок строк в localStorage", e);
+        }
+    }
+
+    function loadSavedOrder() {
+        try {
+            const savedColumnOrder = localStorage.getItem(COLUMN_ORDER_KEY);
+            if (savedColumnOrder) {
+                columnOrder = JSON.parse(savedColumnOrder);
+            }
+        } catch (e) {
+            console.error("Не удалось загрузить порядок столбцов из localStorage", e);
+            columnOrder = [...originalColumnOrder]; // Восстанавливаем по умолчанию при ошибке
+        }
+
+        try {
+            const savedRowOrder = localStorage.getItem(ROW_ORDER_KEY);
+            if (savedRowOrder) {
+                rowOrder = JSON.parse(savedRowOrder);
+            }
+        } catch (e) {
+            console.error("Не удалось загрузить порядок строк из localStorage", e);
+            rowOrder = []; // Сбрасываем при ошибке
+        }
+    }
+
+    function resetOrder() {
+        if(!confirm('Вы уверены, что хотите сбросить пользовательский порядок строк и столбцов?')) return;
+        columnOrder = [...originalColumnOrder];
+        rowOrder = [];
+        try {
+            localStorage.removeItem(COLUMN_ORDER_KEY);
+            localStorage.removeItem(ROW_ORDER_KEY);
+        } catch (e) {
+            console.error("Не удалось очистить порядок из localStorage", e);
+        }
+        renderTable(); // Перерисовываем таблицу с порядком по умолчанию
+        showMessage('Пользовательский порядок сброшен!');
+    }
+
 
     // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
     function processTableData(selectedDate = new Date().toISOString().split('T')[0]) {
@@ -311,8 +377,8 @@
         allSites.forEach(site => {
             if (!stats[site]) {
             stats[site] = {
-                visits: 0, 
-                clicks: 0, 
+                visits: 0,
+                clicks: 0,
                 unique: 0,
                 last: new Date(0),
                 hasData: false
@@ -344,6 +410,34 @@
             lastVisit: d.last.getTime() > 0 ? d.last : new Date(0), // Храним как Date object
             hasData: d.hasData
         }));
+
+        // Применяем пользовательский порядок строк, если он есть
+        if (rowOrder.length > 0) {
+            // Сортируем tableData в соответствии с rowOrder
+            // Сайты, не вошедшие в rowOrder, будут в конце
+            tableData.sort((a, b) => {
+                const indexA = rowOrder.indexOf(a.site);
+                const indexB = rowOrder.indexOf(b.site);
+
+                // Если оба сайта в списке, сортируем по индексу
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                // Если только A в списке, он идет первым
+                if (indexA !== -1) {
+                    return -1;
+                }
+                // Если только B в списке, он идет первым
+                if (indexB !== -1) {
+                    return 1;
+                }
+                // Если ни один не в списке, оставляем исходный порядок (по умолчанию - по визитам)
+                return 0; // Или можно вернуть b.visits - a.visits для сортировки по умолчанию
+            });
+        } else {
+            // Сортировка по умолчанию - по убыванию визитов
+            tableData.sort((a, b) => b.visits - a.visits);
+        }
     }
 
     // ===== РЕНДЕР ТАБЛИЦЫ С ФИЛЬТРОМ И ПЕРЕТАСКИВАНИЕМ =====
@@ -380,9 +474,9 @@
     function renderTableBody() {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-        
-        // Сортировка по умолчанию - по убыванию визитов
-        const sortedData = [...tableData].sort((a, b) => b.visits - a.visits);
+
+        // tableData уже отсортирован в processTableData
+        const sortedData = tableData;
 
         sortedData.forEach((item, rowIndex) => {
             const tr = document.createElement('tr');
@@ -503,18 +597,22 @@
             row.addEventListener('drop', (e) => {
                 e.preventDefault();
                 row.classList.remove('drag-over', 'drag-over-after');
-                
+
                 if (draggedRow !== row) {
                     const bounding = row.getBoundingClientRect();
                     const offset = bounding.y + (bounding.height / 2);
-                    
+
                     const tbody = document.getElementById('tableBody');
                     if (e.clientY - offset > 0) {
                         tbody.insertBefore(draggedRow, row.nextSibling);
                     } else {
                         tbody.insertBefore(draggedRow, row);
                     }
-                    showMessage('Порядок строк изменен. Обновите страницу, чтобы сбросить.', 'warning');
+
+                    // Обновляем порядок строк rowOrder после перетаскивания
+                    updateRowOrderFromDOM();
+                    saveRowOrder(); // Сохраняем новый порядок в localStorage
+                    // Не показываем временное сообщение
                 }
             });
         });
@@ -577,14 +675,14 @@
             header.addEventListener('drop', (e) => {
                 e.preventDefault();
                 header.classList.remove('drag-over-left', 'drag-over-right');
-                
+
                 if (draggedHeader && draggedHeader !== header) {
                     const bounding = header.getBoundingClientRect();
                     const midpoint = bounding.x + (bounding.width / 2);
-                    
+
                     const oldIndex = columnOrder.indexOf(draggedHeader.dataset.columnId);
                     const newIndex = columnOrder.indexOf(header.dataset.columnId);
-                    
+
                     if (oldIndex > -1 && newIndex > -1) {
                         // Удаляем элемент из старой позиции
                         const movedItem = columnOrder.splice(oldIndex, 1)[0];
@@ -593,11 +691,12 @@
                         const insertIndex = e.clientX < midpoint ? newIndex : newIndex + 1;
                         // Корректируем индекс, если элемент был до новой позиции
                         const finalIndex = oldIndex < insertIndex ? insertIndex - 1 : insertIndex;
-                        
+
                         columnOrder.splice(finalIndex, 0, movedItem);
-                        
+
                         renderTable(); // Перерисовываем таблицу с новым порядком
-                        showMessage('Порядок столбцов изменен. Обновите страницу, чтобы сбросить.', 'warning');
+                        saveColumnOrder(); // Сохраняем новый порядок в localStorage
+                        // Не показываем временное сообщение
                     }
                 }
             });
@@ -616,6 +715,19 @@
                 });
 
         });
+    }
+
+    // ===== ФУНКЦИЯ ОБНОВЛЕНИЯ ПОРЯДКА СТРОК ИЗ DOM =====
+    function updateRowOrderFromDOM() {
+        const tbody = document.getElementById('tableBody');
+        const newOrder = [];
+        tbody.querySelectorAll('.draggable-row').forEach(row => {
+            const site = row.dataset.site;
+            if (site) {
+                newOrder.push(site);
+            }
+        });
+        rowOrder = newOrder;
     }
 
     // ===== ФУНКЦИИ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА КОЛОНОК (обновленные)=====
@@ -705,8 +817,7 @@
         });
         processTableData(); // Перепроцессируем данные
         renderTable(); // Перерисовываем таблицу с обновленными данными
-        // Сбрасываем порядок столбцов
-        columnOrder = [...originalColumnOrder];
+        // НЕ сбрасываем порядок столбцов и строк
         showMessage('Вся статистика сброшена в панели!');
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в панели:', error);
@@ -742,7 +853,7 @@
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
     }
-   
+
     // ===== УПРАВЛЕНИЕ ДАТОЙ =====
     const datePicker = document.getElementById('datePicker');
     datePicker.valueAsDate = new Date();
@@ -763,6 +874,7 @@
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
     document.getElementById('resetAllBtn').addEventListener('click', resetAllStats);
+    document.getElementById('resetOrderBtn').addEventListener('click', resetOrder); // Новый обработчик
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
     // Инициализируем изменение размера колонок после загрузки таблицы
