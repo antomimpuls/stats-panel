@@ -1,11 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Панель статистики</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0a0a0f;
+      --card:#1a1a25;
+      --accent:#b388eb;
+      --text:#fff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      padding:20px;
+      font-family:'Segoe UI',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .container{max-width:1400px;margin:0 auto}
+    .header-controls{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:20px;
+      flex-wrap:wrap;
+      gap:15px;
+    }
+    .controls{
+      display:flex;
+      gap:12px;
+    }
+    .btn{
+      background:var(--accent);
+      border:0;
+      border-radius:8px;
+      padding:10px 20px;
+      color:var(--bg);
+      font-size:14px;
+      font-weight:bold;
+      cursor:pointer;
+      transition:.25s;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn:hover{opacity:.8}
+    .btn.reset{background:#ff4757}
+    
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:20px;
+      table-layout: fixed;
+    }
+    th, td{
+      padding:12px;
+      text-align:left;
+      border-bottom:1px solid #333;
+      position: relative;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th{
+      background:#121218;
+      color:var(--accent);
+      cursor: col-resize;
+      user-select: none;
+    }
+    th::after{
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--accent);
+      opacity: 0.3;
+      cursor: col-resize;
+    }
+    th:hover::after{
+      opacity: 0.8;
+    }
+    tr:hover{background:#1f1f2a}
+    
+    .action-btn{
+      background:var(--accent);
+      border:0;
+      border-radius:6px;
+      padding:6px 12px;
+      color:var(--bg);
+      font-size:12px;
+      cursor:pointer;
+      transition:.25s;
+    }
+    .action-btn:hover{opacity:.8}
+    
+    .comment-input{
+      background:var(--card);
+      border:1px solid #333;
+      border-radius:6px;
+      padding:6px 10px;
+      color:var(--text);
+      font-size:14px;
+      width: 100%;
+      min-width: 150px;
+      box-sizing: border-box;
+    }
+    .comment-input:focus{
+      outline:none;
+      border-color:var(--accent);
+    }
+
+    /* --- Фильтр дат --- */
+    #dateFilter{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:30px;
+      margin-bottom:20px;
+    }
+    #dateFilter input[type=date]{
+      background:var(--card);
+      border:0;
+      border-radius:8px;
+      padding:8px 12px;
+      color:var(--text);
+      font-size:16px;
+      cursor:pointer;
+    }
+    .quickDate{
+      background:var(--accent);
+      border:0;
+      border-radius:8px;
+      padding:8px 16px;
+      color:var(--bg);
+      font-size:14px;
+      cursor:pointer;
+      transition:.25s;
+    }
+    .quickDate:hover{opacity:.8}
+    .error{color:#ff4757;text-align:center;padding:20px}
+    
+    .resizing {
+      cursor: col-resize !important;
+      user-select: none;
+    }
+    
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    
+    .zero-stats {
+      opacity: 0.6;
+    }
+    
+    .success-message {
+      background: #4CAF50;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
+
+    .warning-message {
+      background: #ff9800;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-controls">
+      <h1>📊 Централизованная панель статистики</h1>
+      <div class="controls">
+        <button class="btn" id="refreshBtn">
+          <i class="fas fa-sync-alt"></i> Обновить статистику
+        </button>
+        <button class="btn reset" id="resetAllBtn">
+          <i class="fas fa-trash"></i> Сбросить статистику везде
+        </button>
+      </div>
+    </div>
+
+    <div id="dateFilter">
+      <i class="fa-solid fa-calendar-days" style="font-size:1.3em;color:var(--accent)"></i>
+      <input type="date" id="datePicker">
+      <button class="quickDate" data-offset="-2">Позавчера</button>
+      <button class="quickDate" data-offset="-1">Вчера</button>
+      <button class="quickDate" data-offset="0">Сегодня</button>
+    </div>
+
+    <table id="sitesTable">
+      <thead>
+        <tr>
+          <th width="200">Сайт</th>
+          <th width="100">Визиты</th>
+          <th width="120">Уникальные визиты</th>
+          <th width="120">Клики WhatsApp</th>
+          <th width="250">Комментарий</th>
+          <th width="150">Последний визит</th>
+          <th width="120">Действия</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
   <script>
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
     const DATA_RANGE = 'data!A:E'; // Диапазон с основными данными
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
-    // ВАЖНО: Обновите этот URL на тот, который вы получили после развертывания Apps Script
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+    // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
+    const APPS_SCRIPT_URL = 'ВАШ_НОВЫЙ_APPS_SCRIPT_URL';
 
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
@@ -47,7 +267,7 @@
 
         renderTable();
         hideMessage(); // Скрываем сообщение после загрузки
-      } catch (e){
+      } catch (e){ 
         showError('Ошибка загрузки: '+ e.message);
         console.error('Ошибка загрузки:', e);
       } finally {
@@ -67,8 +287,8 @@
       allSites.forEach(site => {
         if (!stats[site]) {
           stats[site] = {
-            visits: 0,
-            clicks: 0,
+            visits: 0, 
+            clicks: 0, 
             unique: 0,
             last: new Date(0),
             hasData: false
@@ -89,14 +309,14 @@
           stats[site].clicks += parseInt(c) || 0;
           stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
           stats[site].hasData = true;
-
+          
           if(date > stats[site].last) stats[site].last = date;
         }
       });
 
       const tbody = document.querySelector('#sitesTable tbody');
       tbody.innerHTML = '';
-
+      
       Object.entries(stats)
         .sort(([,a],[,b])=>b.visits-a.visits)
         .forEach(([site,d])=>{
@@ -104,14 +324,14 @@
           if (d.visits === 0 && d.clicks === 0) {
             tr.classList.add('zero-stats');
           }
-
+          
           tr.innerHTML = `
             <td title="${site}">${site}</td>
             <td>${d.visits}</td>
             <td>${d.unique}</td>
             <td>${d.clicks}</td>
             <td>
-              <input type="text" class="comment-input" value="${comments[site] || ''}"
+              <input type="text" class="comment-input" value="${comments[site] || ''}" 
                      placeholder="Комментарий" data-site="${site}">
             </td>
             <td>${d.last.getTime() > 0 ? d.last.toLocaleString() : 'Нет данных'}</td>
@@ -131,54 +351,57 @@
         });
     }
 
-    // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ =====
+    // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
-      try {
-        // Обновляем локальную копию для немедленного отображения
-        comments[site] = comment;
+      // 1. Обновим локальную копию для мгновенного отображения
+      comments[site] = comment;
 
-        // Отправляем данные на сервер для сохранения
+      try {
+        // 2. Отправим запрос на Google Apps Script
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             action: 'saveComment',
             site: site,
             comment: comment,
-            spreadsheetId: SPREADSHEET_ID
+            spreadsheetId: SPREADSHEET_ID // Этот ID у вас уже есть в коде
           })
         });
 
+        // 3. Проверим ответ
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Ошибка HTTP при сохранении комментария: ${response.status} - ${errorText}`);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || result.message || 'Неизвестная ошибка при сохранении комментария');
-        }
 
-        console.log(`Комментарий для ${site} успешно сохранен на сервере.`);
-        // Можно показать временное сообщение об успехе, если нужно
-        // showMessage(`Комментарий для ${site} сохранен!`);
+        if (result.success) {
+          console.log(`Комментарий для ${site} успешно сохранен в таблице.`);
+          // Опционально: показать сообщение пользователю
+          // showMessage(`Комментарий для ${site} сохранен!`);
+        } else {
+          throw new Error(result.error || 'Неизвестная ошибка от сервера');
+        }
 
       } catch (error) {
         console.error('Ошибка при сохранении комментария:', error);
         alert('Ошибка при сохранении комментария: ' + error.message);
-        // В случае ошибки можно вернуть старое значение в input или оставить как есть
+        // Восстановим старое значение в поле ввода в случае ошибки, если нужно
+        // const input = document.querySelector(`input[data-site="${site}"]`);
+        // if (input) input.value = comments[site] || '';
       }
     }
 
     // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
     function resetSiteStats(site) {
       if(!confirm(`Вы уверены, что хотите сбросить статистику для сайта ${site} ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.`)) return;
-
+      
       try {
         document.body.classList.add('loading');
-
+        
         // Обновляем локальные данные rawData, обнуляя статистику для конкретного сайта
         rawData = rawData.map(row => {
           if (row[0] === site) {
@@ -188,10 +411,10 @@
           }
           return row;
         });
-
+        
         renderTable(); // Перерисовываем таблицу с обновленными данными
         showMessage(`Статистика для сайта ${site} сброшена в панели!`);
-
+        
       } catch (error) {
         console.error('Ошибка при сбросе статистики в панели:', error);
         alert('Ошибка при сбросе статистики в панели: ' + error.message);
@@ -202,19 +425,19 @@
 
     function resetAllStats() {
       if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
-
+      
       try {
         document.body.classList.add('loading');
-
+        
         // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
         rawData = rawData.map(row => {
           // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
           return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
-
+        
         renderTable(); // Перерисовываем таблицу с обновленными данными
         showMessage('Вся статистика сброшена в панели!');
-
+        
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в панели:', error);
         alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
@@ -231,7 +454,7 @@
       messageDiv.textContent = message;
       messageDiv.id = 'tempMessage'; // Добавляем ID для удобства удаления
       document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
-
+      
       if (type === 'success') {
           // Удаляем сообщение об успехе через 3 секунды
           setTimeout(() => {
@@ -258,7 +481,7 @@
     // ===== ФУНКЦИИ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА КОЛОНОК =====
     function initColumnResize() {
       const headers = document.querySelectorAll('th');
-
+      
       headers.forEach(header => {
         header.addEventListener('mousedown', (e) => {
           if (e.offsetX > header.offsetWidth - 10) {
@@ -266,25 +489,25 @@
             currentColumn = header;
             startX = e.pageX;
             startWidth = header.offsetWidth;
-
+            
             document.body.style.cursor = 'col-resize';
             document.body.classList.add('resizing');
-
+            
             e.preventDefault();
           }
         });
       });
-
+      
       document.addEventListener('mousemove', (e) => {
         if (isResizing && currentColumn) {
           const newWidth = startWidth + (e.pageX - startX);
           if (newWidth > 50) { // Минимальная ширина колонки
             currentColumn.style.width = newWidth + 'px';
-
+            
             // Обновляем ширину всех ячеек в этой колонке
             const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
             const rows = document.querySelectorAll('#sitesTable tr');
-
+            
             rows.forEach(row => {
               const cell = row.children[columnIndex];
               if (cell) {
@@ -294,7 +517,7 @@
           }
         }
       });
-
+      
       document.addEventListener('mouseup', () => {
         if (isResizing) {
           isResizing = false;
@@ -326,7 +549,9 @@
 
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
-
+    
     // Инициализируем изменение размера колонок после загрузки таблицы
     setTimeout(initColumnResize, 100);
   </script>
+</body>
+</html>
