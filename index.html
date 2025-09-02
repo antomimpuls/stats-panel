@@ -870,6 +870,7 @@
     document.getElementById('resetOrderBtn').addEventListener('click', resetOrder);
     // ===== ФУНКЦИЯ ОТПРАВКИ СТАТИСТИКИ (из фронтенда) =====
     async function handleSaveStats() {
+      // ХОРОШО: Динамическое определение сайта
       const site = (() => {
         const url = new URL(window.location);
         const param = url.searchParams.get('site');
@@ -877,13 +878,15 @@
       })();
       const visitors = 1;
       const clicks = 0;
-      const ip = await getIP();
+      const ip = await getIP(); // <-- Получаем IP
+
       const form = new URLSearchParams();
       form.append('action', 'saveStats');
-      form.append('site', site);
+      form.append('site', site); // <-- Отправляем динамический site
       form.append('visitors', visitors.toString());
       form.append('clicks_whatsapp', clicks.toString());
-      form.append('ip', ip);
+      form.append('ip', ip); // <-- Отправляем IP
+
       try {
         const response = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
@@ -891,7 +894,7 @@
         });
         const data = await response.json();
         if (data.status === 'success') {
-          console.log('Статистика (1 визит) отправлена');
+          console.log('Статистика (1 визит) отправлена для сайта:', site); // <-- Лог для проверки
         } else {
           console.error('Ошибка отправки статистики:', data.message);
         }
@@ -901,7 +904,9 @@
     }
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     (async () => {
+        // Отправляем статистику при загрузке
         await handleSaveStats();
+        // Загружаем данные для отображения
         await loadStats();
     })();
   </script>
