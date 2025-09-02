@@ -471,10 +471,8 @@
             switch(colId) {
                 case 'site': th.textContent = 'Сайт'; th.style.width = '200px'; break;
                 case 'visits': th.textContent = 'Визиты'; th.style.width = '100px'; break;
-                // case 'unique': th.textContent = 'Уникальные визиты'; th.style.width = '120px'; break; // УБРАНО
                 case 'clicks': th.textContent = 'Клики WhatsApp'; th.style.width = '120px'; break;
                 case 'comment': th.textContent = 'Комментарий'; th.style.width = '250px'; break;
-                // case 'lastVisit': th.textContent = 'Последний визит'; th.style.width = '150px'; break; // УБРАНО
                 case 'actions': th.textContent = 'Действия'; th.style.width = '120px'; break;
                 default: th.textContent = colId;
             }
@@ -505,9 +503,6 @@
                     case 'visits':
                         td.textContent = item.visits;
                         break;
-                    // case 'unique': // УБРАНО
-                    //     td.textContent = item.unique;
-                    //     break;
                     case 'clicks':
                         td.textContent = item.clicks;
                         break;
@@ -529,9 +524,6 @@
                         });
                         td.appendChild(input);
                         break;
-                    // case 'lastVisit': // УБРАНО
-                    //     td.textContent = item.lastVisit.getTime() > 0 ? item.lastVisit.toLocaleString() : 'Нет данных';
-                    //     break;
                     case 'actions':
                         const button = document.createElement('button');
                         button.className = 'action-btn';
