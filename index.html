@@ -245,11 +245,11 @@
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
-    const DATA_RANGE = 'data!A:F'; // <--- Изменено: теперь включает колонку F (uid)
+    const DATA_RANGE = 'data!A:F'; // <--- Теперь колонка F - IP
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
     // Убедитесь, что URL не содержит пробелов и не заканчивается на /
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec'; // <-- ЗАМЕНИТЕ НА СВОЙ
     // ===== КЛЮЧИ ДЛЯ LOCAL STORAGE =====
     const COLUMN_ORDER_KEY = 'statsPanelColumnOrder';
     const ROW_ORDER_KEY = 'statsPanelRowOrder'; // Новый ключ для порядка строк
@@ -264,20 +264,19 @@
     let columnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'lastVisit', 'actions']; // Порядок колонок по умолчанию
     let originalColumnOrder = [...columnOrder]; // Сохраняем оригинальный порядок
     let rowOrder = []; // Массив для хранения пользовательского порядка строк (сайтов)
-    // ===== ГЕНЕРАЦИЯ И СОХРАНЕНИЕ UID =====
-    function getCookie(n) {
-      const v = document.cookie.match('(^|;) ?' + n + '=([^;]*)(;|$)');
-      return v ? v[2] : null;
+    
+    /* ---------- Получить IP пользователя ---------- */
+    async function getIP() {
+      try {
+        const r = await fetch('https://api.ipify.org?format=json');
+        const data = await r.json();
+        return data.ip || 'unknown';
+      } catch (err) {
+        console.error('Ошибка получения IP:', err);
+        return 'unknown';
+      }
     }
-    function setCookie(n, v, days) {
-      const d = new Date();
-      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-      document.cookie = n + '=' + v + ';path=/;expires=' + d.toUTCString();
-    }
-    // При загрузке страницы проверяем и устанавливаем uid
-    if (!getCookie('uid')) {
-      setCookie('uid', crypto.randomUUID(), 365);
-    }
+
     // ===== ФУНКЦИЯ ЗАПРОСА УНИКАЛЬНЫХ ВИЗИТОВ =====
     async function fetchUnique(site, date) {
       const form = new URLSearchParams();
@@ -288,7 +287,6 @@
         const response = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
         const data = await response.json();
         return data.status === 'success' ? data.uniqueVisits : 0;
@@ -395,22 +393,20 @@
             stats[site] = {
                 visits: 0,
                 clicks: 0,
-                unique: 0,
+                unique: 0, // Инициализируем, но не используем локально
                 last: new Date(0),
                 hasData: false
             };
             }
         });
-        // Заполняем статистику данными
+        // Заполняем статистику данными (визиты, клики, последний визит)
         rawData.forEach(([site, v, c, ts, dateOnly]) => {
             const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
             if(selectedDate && rowDate !== selectedDate) return;
             const date = new Date(ts);
-            // if(date > lastVisit) lastVisit = date;
             if(stats[site]) {
             stats[site].visits += parseInt(v) || 0;
             stats[site].clicks += parseInt(c) || 0;
-            stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
             stats[site].hasData = true;
             if(date > stats[site].last) stats[site].last = date;
             }
@@ -419,14 +415,13 @@
         const promises = Object.entries(stats).map(async ([site, d]) => ({
             site: site,
             visits: d.visits,
-            // unique: d.unique, // <--- старая логика
-            unique: await fetchUnique(site, selectedDate), // <--- новая логика
+            // unique: d.unique, // <--- старая логика удалена
+            unique: await fetchUnique(site, selectedDate), // <--- новая логика: запрос к серверу
             clicks: d.clicks,
             comment: comments[site] || '',
             lastVisit: d.last.getTime() > 0 ? d.last : new Date(0), // Храним как Date object
             hasData: d.hasData
         }));
-
         tableData = await Promise.all(promises); // <--- Дожидаемся завершения всех запросов
         // Применяем пользовательский порядок строк, если он есть
         if (rowOrder.length > 0) {
@@ -734,7 +729,6 @@
         }
     });
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
-    // ✅ Исправленная версия от пользователя
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
       const form = new URLSearchParams();
@@ -745,7 +739,6 @@
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
         const txt = await res.text();
         const data = JSON.parse(txt);
@@ -769,7 +762,6 @@
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form,
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
         const txt = await res.text();
         const data = JSON.parse(txt);
@@ -812,8 +804,7 @@
         form.append('action', 'resetAllStats');
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
-          body: form
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
+          body: form,
         });
         const txt = await res.text();
         const data = JSON.parse(txt);
@@ -857,62 +848,67 @@
     // ===== УПРАВЛЕНИЕ ДАТОЙ =====
     const datePicker = document.getElementById('datePicker');
     datePicker.valueAsDate = new Date();
-    datePicker.addEventListener('change', async ()=>{ // <--- async
-        await processTableData(datePicker.value); // <--- await
+    datePicker.addEventListener('change', async ()=>{
+        await processTableData(datePicker.value);
         renderTable();
     });
     document.querySelectorAll('.quickDate').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{ // <--- async
+      btn.addEventListener('click', async ()=>{
         const offset = parseInt(btn.dataset.offset);
         const d = new Date();
         d.setDate(d.getDate()+offset);
         datePicker.valueAsDate = d;
-        await processTableData(d.toISOString().split('T')[0]); // <--- await
+        await processTableData(d.toISOString().split('T')[0]);
         renderTable();
       });
     });
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
-    document.getElementById('refreshBtn').addEventListener('click', async () => { // <--- async
-      await loadStats(); // <--- await
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      await loadStats();
     });
     // Обработчик для сброса в таблице
     document.getElementById('resetAllSheetsBtn').addEventListener('click', resetAllStatsInSheets);
     // Обработчик для локального сброса УДАЛЕН
     document.getElementById('resetOrderBtn').addEventListener('click', resetOrder);
-    // ===== ИНИЦИАЛИЗАЦИЯ =====
-    loadStats();
-    // Инициализируем изменение размера колонок после загрузки таблицы
-    // setTimeout(initColumnResize, 100); // Убираем старую функцию
 
     // ===== ФУНКЦИЯ ОТПРАВКИ СТАТИСТИКИ (из фронтенда) =====
     async function handleSaveStats() {
       const site = window.location.hostname;
-      const visitors = localStorage.getItem('visitors') || 0;
-      const clicks = localStorage.getItem('clicks_whatsapp') || 0;
+      // В реальной панели эти значения могут браться по-другому или вообще не использоваться при автоматическом подсчете.
+      // Здесь мы просто отправляем 1 визит и 0 кликов.
+      const visitors = 1; 
+      const clicks = 0;
+      const ip = await getIP(); // <-- Получаем IP
+
       const form = new URLSearchParams();
       form.append('action', 'saveStats');
       form.append('site', site);
-      form.append('visitors', visitors);
-      form.append('clicks_whatsapp', clicks);
-      form.append('uid', getCookie('uid') || ''); // <--- добавлено
+      form.append('visitors', visitors.toString());
+      form.append('clicks_whatsapp', clicks.toString());
+      form.append('ip', ip); // <-- Отправляем IP вместо UID
 
       try {
-        const response = await fetch(APPS_SCRIPT_URL, {
+        const response = await fetch(APPS_SCRIPT_URL.trim(), { // <-- Убедитесь, что URL корректен
           method: 'POST',
           body: form
         });
         const data = await response.json();
         if (data.status === 'success') {
-          console.log('Статистика отправлена');
+          console.log('Статистика (1 визит) отправлена');
         } else {
           console.error('Ошибка отправки статистики:', data.message);
         }
       } catch (error) {
-        console.error('Ошибка сети:', error);
+        console.error('Ошибка сети при отправке статистики:', error);
       }
     }
-    // Вызов handleSaveStats() можно добавить в нужное место, например, при загрузке страницы
-    // window.addEventListener('load', handleSaveStats);
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    (async () => {
+        // Отправляем статистику при загрузке
+        await handleSaveStats();
+        // Загружаем данные для отображения
+        await loadStats();
+    })();
   </script>
 </body>
 </html>
