@@ -695,18 +695,17 @@
         document.body.classList.remove('resizing');
         }
     });
-    // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
-    // ✅ Исправленная версия от пользователя
+    // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ ДЛЯ ОДНОГО САЙТА =====
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
-      const form = new URLSearchParams();
+      const form = new URLSearchParams(); // Используем URLSearchParams
       form.append('action', 'resetSiteStats');
       form.append('site', site);
       try {
         document.body.classList.add('loading');
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
-          body: form
+          body: form // Отправляем form как тело
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
         const txt = await res.text();
@@ -721,6 +720,40 @@
         document.body.classList.remove('loading');
       }
     }
+
+    // ===== ФУНКЦИЯ СБРОСА ВСЕЙ СТАТИСТИКИ (И В ТАБЛИЦЕ, И В ПАНЕЛИ) =====
+    async function resetAllStats() {
+      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
+
+      try {
+        document.body.classList.add('loading');
+        showMessage('Сбрасываем всю статистику...', 'warning');
+
+        const form = new URLSearchParams(); // Используем URLSearchParams
+        form.append('action', 'resetAllStats');
+
+        const res = await fetch(APPS_SCRIPT_URL.trim(), {
+          method: 'POST',
+          body: form // Отправляем form как тело
+          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
+        });
+
+        const txt = await res.text();
+        const data = JSON.parse(txt);
+
+        if (data.status !== 'success') throw new Error(data.message);
+
+        showMessage('Вся статистика сброшена!');
+        loadStats(); // перезагружаем данные в панели
+
+      } catch (error) {
+        console.error('Ошибка при сбросе всей статистики:', error);
+        alert('Ошибка при сбросе всей статистики: ' + error.message);
+      } finally {
+        document.body.classList.remove('loading');
+      }
+    }
+
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -741,37 +774,6 @@
       } catch (err) {
         alert('Ошибка сохранения комментария: ' + err.message);
         console.error(err);
-      }
-    }
-    // ===== ФУНКЦИЯ СБРОСА ВСЕЙ СТАТИСТИКИ (И В ТАБЛИЦЕ, И В ПАНЕЛИ) =====
-    async function resetAllStats() {
-      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
-      
-      try {
-        document.body.classList.add('loading');
-        showMessage('Сбрасываем всю статистику...', 'warning');
-        
-        const form = new URLSearchParams();
-        form.append('action', 'resetAllStats');
-        
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: form
-        });
-        
-        const txt = await res.text();
-        const data = JSON.parse(txt);
-        
-        if (data.status !== 'success') throw new Error(data.message);
-        
-        showMessage('Вся статистика сброшена!');
-        loadStats(); // перезагружаем данные в панели
-        
-      } catch (error) {
-        console.error('Ошибка при сбросе всей статистики:', error);
-        alert('Ошибка при сбросе всей статистики: ' + error.message);
-      } finally {
-        document.body.classList.remove('loading');
       }
     }
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
