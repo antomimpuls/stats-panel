@@ -216,10 +216,7 @@
         <button class="btn reset" id="resetAllSheetsBtn">
           <i class="fas fa-trash"></i> Сбросить статистику везде
         </button>
-        <!-- Кнопка для сброса только в панели -->
-        <button class="btn" id="resetAllLocalBtn">
-          <i class="fas fa-broom"></i> Сбросить локально
-        </button>
+        <!-- Кнопка для сброса только в панели УДАЛЕНА -->
         <button class="btn" id="resetOrderBtn">
           <i class="fas fa-undo"></i> Сбросить порядок
         </button>
@@ -769,32 +766,24 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
     async function resetAllStatsInSheets() {
       if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
-
       try {
         document.body.classList.add('loading');
         showMessage('Сбрасываем всю статистику в таблице...', 'warning');
-
         const form = new URLSearchParams();
         form.append('action', 'resetAllStats');
-
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
-
         const txt = await res.text();
         const data = JSON.parse(txt);
-
         if (data.status !== 'success') throw new Error(data.message);
-
         showMessage('Вся статистика в таблице сброшена!');
         loadStats(); // перезагружаем данные в панели из таблицы
-
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в таблице:', error);
         alert('Ошибка при сбросе всей статистики в таблице: ' + error.message);
@@ -802,7 +791,6 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function showMessage(message, type = 'success') {
       hideMessage(); // Удаляем предыдущее сообщение, если оно есть
@@ -851,8 +839,7 @@
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
     // Обработчик для сброса в таблице
     document.getElementById('resetAllSheetsBtn').addEventListener('click', resetAllStatsInSheets);
-    // Обработчик для локального сброса
-    document.getElementById('resetAllLocalBtn').addEventListener('click', resetAllStats);
+    // Обработчик для локального сброса УДАЛЕН
     document.getElementById('resetOrderBtn').addEventListener('click', resetOrder);
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
