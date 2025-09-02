@@ -323,30 +323,23 @@
           });
         });
     }
-    
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
     // ✅ Исправленная версия от пользователя
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
-
       const form = new URLSearchParams();
       form.append('action', 'resetSiteStats');
       form.append('site', site);
-
       try {
         document.body.classList.add('loading');
-
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
-
         const txt = await res.text();
         const data = JSON.parse(txt);
-
         if (data.status !== 'success') throw new Error(data.message);
-
         showMessage(`Статистика для ${site} обнулена (${data.message})`);
         loadStats(); // перезагружаем данные в панели
       } catch (err) {
@@ -356,7 +349,6 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -379,21 +371,28 @@
         console.error(err);
       }
     }
-    // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
-    function resetAllStats() {
-      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
+    // ===== ФУНКЦИЯ СБРОСА СТАТИСТИКИ ВСЕХ САЙТОВ (РЕАЛЬНО В ТАБЛИЦЕ) =====
+    async function resetAllStats() {
+      if (!confirm('Обнулить статистику ВСЕХ сайтов в таблице?')) return;
+
+      document.body.classList.add('loading');
+
       try {
-        document.body.classList.add('loading');
-        // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
-        rawData = rawData.map(row => {
-          // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
-          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
+        const res = await fetch(APPS_SCRIPT_URL.trim(), {
+          method: 'POST',
+          body: new URLSearchParams({ action: 'resetAllSites' })
+          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
-        renderTable(); // Перерисовываем таблицу с обновленными данными
-        showMessage('Вся статистика сброшена в панели!');
-      } catch (error) {
-        console.error('Ошибка при сбросе всей статистики в панели:', error);
-        alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
+        const txt = await res.text();
+        const data = JSON.parse(txt);
+
+        if (data.status !== 'success') throw new Error(data.message);
+
+        showMessage('Статистика обнулена для всех сайтов!');
+        loadStats(); // перезагружаем таблицу
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+        console.error(err);
       } finally {
         document.body.classList.remove('loading');
       }
