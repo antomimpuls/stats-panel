@@ -275,8 +275,6 @@
       setCookie('uid', crypto.randomUUID(), 365);
     }
 
-    // ===== ФУНКЦИЯ ЗАПРОСА УНИКАЛЬНЫХ ВИЗИТОВ УДАЛЕНА (не используется) =====
-
     // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
@@ -369,15 +367,18 @@
         const stats = {};
         const allSites = [...new Set(rawData.map(row => row[0]))];
 
+        // Инициализация
         allSites.forEach(site => {
             if (!stats[site]) {
                 stats[site] = { visits: 0, clicks: 0, hasData: false };
             }
         });
 
-        rawData.forEach(([site, v, c, ts, dateOnly]) => {
-            const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
+        // Обработка данных: [site, visits, clicks, timestamp, dateOnly]
+        rawData.forEach(([site, v, c, , dateOnly]) => {
+            const rowDate = dateOnly;
             if (selectedDate && rowDate !== selectedDate) return;
+
             if (stats[site]) {
                 stats[site].visits += parseInt(v) || 0;
                 stats[site].clicks += parseInt(c) || 0;
@@ -385,6 +386,7 @@
             }
         });
 
+        // Формирование таблицы
         tableData = Object.entries(stats).map(([site, d]) => ({
             site: site,
             visits: d.visits,
@@ -393,7 +395,7 @@
             hasData: d.hasData
         }));
 
-        // Применяем порядок строк
+        // Применение порядка строк
         if (rowOrder.length > 0) {
             tableData.sort((a, b) => {
                 const indexA = rowOrder.indexOf(a.site);
@@ -489,7 +491,7 @@
         });
     }
 
-    // ===== ПЕРЕТАСКИВАНИЕ =====
+    // ===== ПЕРЕТАСКИВАНИЕ СТРОК =====
     function initDragAndDrop() {
         const rows = document.querySelectorAll('.draggable-row');
         let draggedRow = null;
@@ -547,6 +549,7 @@
             });
         });
 
+        // ===== ПЕРЕТАСКИВАНИЕ ЗАГОЛОВКОВ СТОЛБЦОВ =====
         const headers = document.querySelectorAll('.column-header');
         let draggedHeader = null;
         headers.forEach((header) => {
@@ -655,7 +658,7 @@
         }
     });
 
-    // ===== СБРОС СТАТИСТИКИ =====
+    // ===== СБРОС СТАТИСТИКИ ПО САЙТУ =====
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
       const form = new URLSearchParams();
@@ -680,7 +683,7 @@
       }
     }
 
-    // ===== СОХРАНЕНИЕ КОММЕНТАРИЕВ =====
+    // ===== СОХРАНЕНИЕ КОММЕНТАРИЯ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
       form.append('action', 'saveComment');
