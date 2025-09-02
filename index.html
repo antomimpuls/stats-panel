@@ -5,30 +5,150 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Панель статистики</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root{--bg:#0a0a0f;--card:#1a1a25;--accent:#b388eb;--text:#fff;}
+    :root{
+      --bg:#0a0a0f;
+      --card:#1a1a25;
+      --accent:#b388eb;
+      --text:#fff;
+    }
     *{box-sizing:border-box}
-    body{margin:0;padding:20px;font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
+    body{
+      margin:0;
+      padding:20px;
+      font-family:'Segoe UI',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
     .container{max-width:1400px;margin:0 auto}
-    .header-controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:15px}
-    .controls{display:flex;gap:12px}
-    .btn{background:var(--accent);border:0;border-radius:8px;padding:10px 20px;color:var(--bg);font-size:14px;font-weight:bold;cursor:pointer;transition:.25s;display:flex;align-items:center;gap:8px}
+    .header-controls{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:20px;
+      flex-wrap:wrap;
+      gap:15px;
+    }
+    .controls{
+      display:flex;
+      gap:12px;
+    }
+    .btn{
+      background:var(--accent);
+      border:0;
+      border-radius:8px;
+      padding:10px 20px;
+      color:var(--bg);
+      font-size:14px;
+      font-weight:bold;
+      cursor:pointer;
+      transition:.25s;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
     .btn:hover{opacity:.8}
     .btn.reset{background:#ff4757}
-    table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed}
-    th,td{padding:12px;text-align:left;border-bottom:1px solid #333;position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    th{background:#121218;color:var(--accent);cursor:col-resize;user-select:none}
-    th::after{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:var(--accent);opacity:.3;cursor:col-resize}
-    th:hover::after{opacity:.8}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:20px;
+      table-layout: fixed;
+    }
+    th, td{
+      padding:12px;
+      text-align:left;
+      border-bottom:1px solid #333;
+      position: relative;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th{
+      background:#121218;
+      color:var(--accent);
+      cursor: col-resize;
+      user-select: none;
+    }
     tr:hover{background:#1f1f2a}
-    .action-btn{background:var(--accent);border:0;border-radius:6px;padding:6px 12px;color:var(--bg);font-size:12px;cursor:pointer;transition:.25s}
+    .action-btn{
+      background:var(--accent);
+      border:0;
+      border-radius:6px;
+      padding:6px 12px;
+      color:var(--bg);
+      font-size:12px;
+      cursor:pointer;
+      transition:.25s;
+    }
     .action-btn:hover{opacity:.8}
-    .comment-input{background:var(--card);border:1px solid #333;border-radius:6px;padding:6px 10px;color:var(--text);font-size:14px;width:100%;min-width:150px;box-sizing:border-box}
-    .comment-input:focus{outline:none;border-color:var(--accent)}
-    .success-message{background:#4CAF50;color:white;padding:10px;border-radius:5px;margin:10px 0;text-align:center}
+    .comment-input{
+      background:var(--card);
+      border:1px solid #333;
+      border-radius:6px;
+      padding:6px 10px;
+      color:var(--text);
+      font-size:14px;
+      width: 100%;
+      min-width: 150px;
+      box-sizing: border-box;
+    }
+    .comment-input:focus{
+      outline:none;
+      border-color:var(--accent);
+    }
+    #dateFilter{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:30px;
+      margin-bottom:20px;
+    }
+    #dateFilter input[type=date]{
+      background:var(--card);
+      border:0;
+      border-radius:8px;
+      padding:8px 12px;
+      color:var(--text);
+      font-size:16px;
+      cursor:pointer;
+    }
+    .quickDate{
+      background:var(--accent);
+      border:0;
+      border-radius:8px;
+      padding:8px 16px;
+      color:var(--bg);
+      font-size:14px;
+      cursor:pointer;
+      transition:.25s;
+    }
+    .quickDate:hover{opacity:.8}
     .error{color:#ff4757;text-align:center;padding:20px}
-    .loading{opacity:.7;pointer-events:none}
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    .zero-stats {
+      opacity: 0.6;
+    }
+    .success-message {
+      background: #4CAF50;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .warning-message {
+      background: #ff9800;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -36,11 +156,14 @@
     <div class="header-controls">
       <h1>📊 Централизованная панель статистики</h1>
       <div class="controls">
-        <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> Обновить статистику</button>
-        <button class="btn reset" id="resetAllBtn"><i class="fas fa-trash"></i> Сбросить статистику везде</button>
+        <button class="btn" id="refreshBtn">
+          <i class="fas fa-sync-alt"></i> Обновить
+        </button>
+        <button class="btn reset" id="resetAllBtn">
+          <i class="fas fa-trash"></i> Сбросить всё
+        </button>
       </div>
     </div>
-
     <div id="dateFilter">
       <i class="fa-solid fa-calendar-days" style="font-size:1.3em;color:var(--accent)"></i>
       <input type="date" id="datePicker">
@@ -48,13 +171,12 @@
       <button class="quickDate" data-offset="-1">Вчера</button>
       <button class="quickDate" data-offset="0">Сегодня</button>
     </div>
-
     <table id="sitesTable">
       <thead>
         <tr>
           <th width="200">Сайт</th>
           <th width="100">Визиты</th>
-          <th width="120">Уникальные визиты</th>
+          <th width="120">Уникальные</th>
           <th width="120">Клики WhatsApp</th>
           <th width="250">Комментарий</th>
           <th width="150">Последний визит</th>
@@ -66,100 +188,182 @@
   </div>
 
   <script>
+    // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
     const DATA_RANGE = 'data!A:E';
     const COMMENTS_RANGE = 'comments!A:B';
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+    // ⚠️ Замените этот URL на НОВЫЙ после развертывания Apps Script!
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/ВАШ_НОВЫЙ_URL/exec';
 
+    // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = [];
     let comments = {};
 
+    // ===== ЗАГРУЗКА ДАННЫХ =====
     async function loadStats() {
       try {
         document.body.classList.add('loading');
-        const data = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`)).json();
-        const commentsData = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`)).json();
-        rawData = data.values?.slice(1) || [];
+        showMessage('Загрузка...', 'warning');
+        const dataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`);
+        const dataJson = await dataRes.json();
+        if (!dataJson.values || dataJson.values.length < 2) {
+          showError('Нет данных');
+          return;
+        }
+        rawData = dataJson.values.slice(1);
+
+        const commentsRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`);
+        const commentsJson = await commentsRes.json();
         comments = {};
-        if (commentsData.values?.length > 1) commentsData.values.slice(1).forEach(([s,c]) => comments[s]=c||'');
+        if (commentsJson.values && commentsJson.values.length > 1) {
+          commentsJson.values.slice(1).forEach(([site, comment]) => {
+            if (site) comments[site] = comment || '';
+          });
+        }
+
         renderTable();
-      } catch(e){ alert('Ошибка загрузки: '+e.message) } finally { document.body.classList.remove('loading'); }
+        hideMessage();
+      } catch (e) {
+        showError('Ошибка: ' + e.message);
+      } finally {
+        document.body.classList.remove('loading');
+      }
     }
 
-    function renderTable(dateStr=new Date().toISOString().split('T')[0]){
-      const stats={};
-      const allSites=[...new Set(rawData.map(r=>r[0]))];
-      allSites.forEach(s=>stats[s]={visits:0,clicks:0,unique:0,last:new Date(0),hasData:false});
-      rawData.forEach(([site,v,c,ts,dateOnly])=>{
-        const rowDate=dateOnly||new Date(ts).toISOString().split('T')[0];
-        if(dateStr&&rowDate!==dateStr)return;
-        const d=new Date(ts);
-        if(stats[site]){
-          stats[site].visits+=parseInt(v)||0;
-          stats[site].clicks+=parseInt(c)||0;
-          stats[site].unique+=(parseInt(v)||0)>0?1:0;
-          stats[site].hasData=true;
-          if(d>stats[site].last)stats[site].last=d;
+    // ===== РЕНДЕР ТАБЛИЦЫ =====
+    function renderTable(dateStr = new Date().toISOString().split('T')[0]) {
+      const stats = {};
+      const allSites = [...new Set(rawData.map(r => r[0]))];
+      allSites.forEach(s => stats[s] = { visits: 0, unique: 0, clicks: 0, last: new Date(0), hasData: false });
+
+      rawData.forEach(([site, v, c, ts, dateOnly]) => {
+        const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
+        if (rowDate !== dateStr) return;
+        const date = new Date(ts);
+        if (stats[site]) {
+          stats[site].visits += parseInt(v) || 0;
+          stats[site].clicks += parseInt(c) || 0;
+          stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
+          stats[site].hasData = true;
+          if (date > stats[site].last) stats[site].last = date;
         }
       });
-      const tbody=document.querySelector('#sitesTable tbody');
-      tbody.innerHTML='';
-      Object.entries(stats).sort(([,a],[,b])=>b.visits-a.visits).forEach(([site,d])=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td title="${site}">${site}</td>
-          <td>${d.visits}</td>
-          <td>${d.unique}</td>
-          <td>${d.clicks}</td>
-          <td><input class="comment-input" value="${comments[site]||''}" data-site="${site}"></td>
-          <td>${d.last.getTime()>0?d.last.toLocaleString():'Нет данных'}</td>
-          <td>
-            <button class="action-btn" onclick="deleteSiteStats('${site}')"><i class="fas fa-eraser"></i> Сбросить</button>
-          </td>`;
-        tbody.appendChild(tr);
-        tr.querySelector('.comment-input').addEventListener('change',e=>saveComment(site,e.target.value));
+
+      const tbody = document.querySelector('#sitesTable tbody');
+      tbody.innerHTML = '';
+      Object.entries(stats)
+        .sort(([,a],[,b]) => b.visits - a.visits)
+        .forEach(([site, d]) => {
+          const tr = document.createElement('tr');
+          if (d.visits === 0 && d.clicks === 0) tr.classList.add('zero-stats');
+          tr.innerHTML = `
+            <td title="${site}">${site}</td>
+            <td>${d.visits}</td>
+            <td>${d.unique}</td>
+            <td>${d.clicks}</td>
+            <td><input type="text" class="comment-input" value="${comments[site] || ''}" data-site="${site}" placeholder="Комментарий"></td>
+            <td>${d.last > 0 ? d.last.toLocaleString() : 'Нет'}</td>
+            <td>
+              <button class="action-btn" onclick="resetSiteStats('${site}')">
+                <i class="fas fa-eraser"></i> Сбросить
+              </button>
+            </td>`;
+          tbody.appendChild(tr);
+          tr.querySelector('.comment-input').addEventListener('change', e => saveComment(site, e.target.value));
+        });
+    }
+
+    // ===== СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
+    async function resetSiteStats(site) {
+      if (!confirm(`Сбросить статистику для "${site}" во ВСЕЙ таблице?`)) return;
+      try {
+        document.body.classList.add('loading');
+        const form = new URLSearchParams();
+        form.append('action', 'resetSite');
+        form.append('site', site);
+
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: form
+        });
+
+        const txt = await res.text();
+        const data = JSON.parse(txt);
+        if (data.status !== 'success') throw new Error(data.message);
+
+        // Обновляем локальные данные
+        rawData = rawData.map(r => r[0] === site ? [site, '0', '0', r[3], r[4]] : r);
+        renderTable();
+        showMessage('✅ Статистика сброшена в таблице!');
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      } finally {
+        document.body.classList.remove('loading');
+      }
+    }
+
+    // ===== СОХРАНЕНИЕ КОММЕНТАРИЯ =====
+    async function saveComment(site, comment) {
+      const form = new URLSearchParams();
+      form.append('action', 'saveComment');
+      form.append('site', site);
+      form.append('comment', comment);
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: form });
+        const data = JSON.parse(await res.text());
+        if (data.status === 'success') {
+          comments[site] = comment;
+          showMessage('Комментарий сохранён');
+        }
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    }
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    function showMessage(msg, type = 'success') {
+      hideMessage();
+      const div = document.createElement('div');
+      div.className = type === 'success' ? 'success-message' : 'warning-message';
+      div.textContent = msg;
+      div.id = 'tempMessage';
+      document.querySelector('.container').insertBefore(div, document.getElementById('dateFilter'));
+      if (type === 'success') setTimeout(hideMessage, 3000);
+    }
+
+    function hideMessage() {
+      const el = document.getElementById('tempMessage');
+      if (el) el.remove();
+    }
+
+    function showError(msg) {
+      document.body.innerHTML = `<div class="error">${msg}</div>`;
+    }
+
+    // ===== УПРАВЛЕНИЕ ДАТОЙ =====
+    const datePicker = document.getElementById('datePicker');
+    datePicker.valueAsDate = new Date();
+    datePicker.addEventListener('change', () => renderTable(datePicker.value));
+    document.querySelectorAll('.quickDate').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const d = new Date();
+        d.setDate(d.getDate() + parseInt(btn.dataset.offset));
+        datePicker.valueAsDate = d;
+        renderTable(d.toISOString().split('T')[0]);
       });
-    }
+    });
 
-    async function saveComment(site,comment){
-      const form=new URLSearchParams();
-      form.append('action','saveComment');
-      form.append('site',site);
-      form.append('comment',comment);
-      await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
-    }
+    // ===== ОБРАБОТЧИКИ =====
+    document.getElementById('refreshBtn').addEventListener('click', loadStats);
+    document.getElementById('resetAllBtn').addEventListener('click', () => {
+      if (confirm('Сбросить ВСЮ статистику во ВСЕЙ таблице?')) {
+        // Можно добавить resetAllStats() если нужно
+        alert('Функция "Сбросить всё" пока не реализована');
+      }
+    });
 
-    async function deleteSiteStats(site){
-      if(!confirm(`Удалить статистику сайта ${site} за сегодня?`))return;
-      const form=new URLSearchParams();
-      form.append('action','deleteSite');
-      form.append('site',site);
-      await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
-      loadStats();
-    }
-
-    async function deleteAllStats(){
-      if(!confirm('Удалить всю статистику за сегодня?'))return;
-      const form=new URLSearchParams();
-      form.append('action','deleteAll');
-      await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
-      loadStats();
-    }
-
-    document.getElementById('refreshBtn').addEventListener('click',loadStats);
-    document.getElementById('resetAllBtn').addEventListener('click',deleteAllStats);
-
-    const datePicker=document.getElementById('datePicker');
-    datePicker.valueAsDate=new Date();
-    datePicker.addEventListener('change',()=>renderTable(datePicker.value));
-    document.querySelectorAll('.quickDate').forEach(b=>b.addEventListener('click',()=>{
-      const d=new Date();
-      d.setDate(d.getDate()+parseInt(b.dataset.offset));
-      datePicker.valueAsDate=d;
-      renderTable(d.toISOString().split('T')[0]);
-    }));
-
+    // ===== ЗАПУСК =====
     loadStats();
   </script>
 </body>
