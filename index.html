@@ -353,45 +353,27 @@
 
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
-      // 1. Обновим локальную копию для мгновенного отображения
-      comments[site] = comment;
+      const form = new URLSearchParams();
+      form.append('action', 'saveComment');
+      form.append('site', site);
+      form.append('comment', comment);
 
       try {
-        // 2. Отправим запрос на Google Apps Script
-        const response = await fetch(APPS_SCRIPT_URL, {
+        const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            action: 'saveComment',
-            site: site,
-            comment: comment,
-            spreadsheetId: SPREADSHEET_ID // Этот ID у вас уже есть в коде
-          })
+          body: form,
+          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
 
-        // 3. Проверим ответ
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const txt = await res.text();
+        const data = JSON.parse(txt);
 
-        const result = await response.json();
-
-        if (result.success) {
-          console.log(`Комментарий для ${site} успешно сохранен в таблице.`);
-          // Опционально: показать сообщение пользователю
-          // showMessage(`Комментарий для ${site} сохранен!`);
-        } else {
-          throw new Error(result.error || 'Неизвестная ошибка от сервера');
-        }
-
-      } catch (error) {
-        console.error('Ошибка при сохранении комментария:', error);
-        alert('Ошибка при сохранении комментария: ' + error.message);
-        // Восстановим старое значение в поле ввода в случае ошибки, если нужно
-        // const input = document.querySelector(`input[data-site="${site}"]`);
-        // if (input) input.value = comments[site] || '';
+        if (data.status !== 'success') throw new Error(data.message);
+        console.log('Комментарий сохранён');
+        showMessage('Комментарий сохранён!');
+      } catch (err) {
+        alert('Ошибка сохранения комментария: ' + err.message);
+        console.error(err);
       }
     }
 
@@ -555,5 +537,3 @@
   </script>
 </body>
 </html>
-
-
