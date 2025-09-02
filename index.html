@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Панель статистики</title>
+  <title>Панель статистики с перетаскиванием</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -169,19 +169,46 @@
       margin: 10px 0;
       text-align: center;
     }
-    /* --- Drag and Drop Styles --- */
+
+    /* --- Drag and drop styles --- */
     .draggable {
-      cursor: move;
+        cursor: move; /* fallback if grab cursor is unsupported */
+        cursor: grab;
+        user-select: none;
     }
-    .dragging {
-      opacity: 0.5;
-      background-color: #333;
+
+    .draggable:active {
+        cursor: grabbing;
     }
+
     .drag-over {
-      border-top: 2px solid var(--accent);
+        border-top: 2px solid var(--accent) !important;
+        /* background-color: rgba(179, 136, 235, 0.1); */
     }
-    .drag-over-bottom {
-      border-bottom: 2px solid var(--accent);
+
+    .drag-over-after {
+        border-bottom: 2px solid var(--accent) !important;
+        /* background-color: rgba(179, 136, 235, 0.1); */
+    }
+
+    .dragging {
+        opacity: 0.5;
+        background-color: #1f1f2a;
+    }
+
+    .column-header.drag-over-left {
+        border-left: 2px solid var(--accent) !important;
+    }
+
+    .column-header.drag-over-right {
+        border-right: 2px solid var(--accent) !important;
+    }
+
+    .reorder-info {
+        font-size: 0.8em;
+        color: #888;
+        margin-top: 5px;
+        font-style: italic;
     }
   </style>
 </head>
@@ -196,9 +223,6 @@
         <button class="btn reset" id="resetAllBtn">
           <i class="fas fa-trash"></i> Сбросить статистику везде
         </button>
-        <button class="btn" id="resetSiteOrderBtn"> <!-- НОВОЕ -->
-          <i class="fas fa-sort"></i> Сброс сортировки сайтов
-        </button>
       </div>
     </div>
     <div id="dateFilter">
@@ -208,31 +232,26 @@
       <button class="quickDate" data-offset="-1">Вчера</button>
       <button class="quickDate" data-offset="0">Сегодня</button>
     </div>
+    <p class="reorder-info">Перетаскивайте строки для изменения порядка. Перетаскивайте заголовки столбцов влево/вправо для изменения порядка столбцов.</p>
     <table id="sitesTable">
       <thead>
-        <tr>
-          <th width="200" data-column="site">Сайт</th>
-          <th width="100" data-column="visits">Визиты</th>
-          <th width="120" data-column="unique">Уникальные визиты</th>
-          <th width="120" data-column="clicks">Клики WhatsApp</th>
-          <th width="100" data-column="redirects">Редиректы</th> <!-- НОВОЕ -->
-          <th width="250" data-column="comment">Комментарий</th>
-          <th width="150" data-column="last">Последний визит</th>
-          <th width="120" data-column="actions">Действия</th>
+        <tr id="tableHeaderRow">
+          <!-- Headers will be populated by JS -->
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="tableBody">
+        <!-- Rows will be populated by JS -->
+      </tbody>
     </table>
   </div>
   <script>
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
-    // Исправлено: Убран пробел в URL
-    const DATA_RANGE = 'data!A:F'; // Диапазон с основными данными (до F)
+    const DATA_RANGE = 'data!A:E'; // Диапазон с основными данными
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
-    // Исправлено: Убедитесь, что URL не содержит пробелов и не заканчивается на /
+    // Убедитесь, что URL не содержит пробелов и не заканчивается на /
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
@@ -241,20 +260,17 @@
     let currentColumn = null;
     let startX = 0;
     let startWidth = 0;
-
-    // ===== Drag and Drop Variables =====
-    let draggedElement = null;
-    let draggedType = null; // 'column' or 'row'
-    let columnOrder = ['site', 'visits', 'unique', 'clicks', 'redirects', 'comment', 'last', 'actions']; // НОВОЕ
-    let siteOrder = []; // НОВОЕ
+    let tableData = []; // Массив объектов для отображения в таблице
+    let columnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'lastVisit', 'actions']; // Порядок колонок по умолчанию
+    let originalColumnOrder = [...columnOrder]; // Сохраняем оригинальный порядок
 
     // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
-        // Исправлено: Добавлен timestamp для обхода кэша
-        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}&timestamp=${Date.now()}`;
+        // Загружаем основные данные
+        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
         if (!data.values || data.values.length < 2){
@@ -275,9 +291,8 @@
                 }
             });
         }
-        // Загружаем порядок из localStorage
-        loadOrderFromStorage();
-        renderTable();
+        processTableData(); // Обрабатываем данные для таблицы
+        renderTable(); // Рендерим таблицу с учетом текущего порядка столбцов
         hideMessage(); // Скрываем сообщение после загрузки
       } catch (e){ 
         showError('Ошибка загрузки: '+ e.message);
@@ -287,156 +302,348 @@
       }
     }
 
-    // ===== Drag and Drop: Load Order from Storage =====
-    function loadOrderFromStorage() {
-        try {
-            const savedColumnOrder = localStorage.getItem('columnOrder');
-            if (savedColumnOrder) {
-                const parsed = JSON.parse(savedColumnOrder);
-                // Проверяем, что все ожидаемые колонки присутствуют
-                if (Array.isArray(parsed) && parsed.length === columnOrder.length && parsed.every(col => columnOrder.includes(col))) {
-                    columnOrder = parsed;
-                }
+    // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
+    function processTableData(selectedDate = new Date().toISOString().split('T')[0]) {
+        const stats = {};
+        // Собираем все уникальные сайты
+        const allSites = [...new Set(rawData.map(row => row[0]))];
+        // Инициализируем статистику для всех сайтов
+        allSites.forEach(site => {
+            if (!stats[site]) {
+            stats[site] = {
+                visits: 0, 
+                clicks: 0, 
+                unique: 0,
+                last: new Date(0),
+                hasData: false
+            };
             }
-        } catch (e) {
-            console.error('Ошибка загрузки порядка колонок из localStorage:', e);
-        }
-
-        try {
-            const savedSiteOrder = localStorage.getItem('siteOrder');
-            if (savedSiteOrder) {
-                const parsed = JSON.parse(savedSiteOrder);
-                if (Array.isArray(parsed)) {
-                    siteOrder = parsed;
-                }
-            }
-        } catch (e) {
-            console.error('Ошибка загрузки порядка сайтов из localStorage:', e);
-        }
-    }
-
-    // ===== Drag and Drop: Save Order to Storage =====
-    function saveOrderToStorage() {
-        try {
-            localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
-            localStorage.setItem('siteOrder', JSON.stringify(siteOrder));
-        } catch (e) {
-            console.error('Ошибка сохранения порядка в localStorage:', e);
-        }
-    }
-
-    // ===== РЕНДЕР ТАБЛИЦЫ С ФИЛЬТРОМ И ПЕРЕСТАНОВКОЙ =====
-    function renderTable(dateStr = new Date().toISOString().split('T')[0]) {
-      const stats = {};
-      let lastVisit = new Date(0);
-      // Собираем все уникальные сайты
-      const allSites = [...new Set(rawData.map(row => row[0]))];
-
-      // Инициализируем статистику для всех сайтов
-      allSites.forEach(site => {
-        if (!stats[site]) {
-          stats[site] = {
-            visits: 0, 
-            clicks: 0, 
-            redirects: 0, // НОВОЕ
-            unique: 0,
-            last: new Date(0),
-            hasData: false
-          };
-        }
-      });
-
-      // Заполняем статистику данными
-      // Формат row: [site, visits, clicks, timestamp, dateOnly, redirects]
-      rawData.forEach(([site, v, c, ts, dateOnly, r]) => {
-        const rowDate = dateOnly || (ts ? new Date(ts).toISOString().split('T')[0] : '');
-        if(dateStr && rowDate !== dateStr) return;
-        const date = ts ? new Date(ts) : new Date(0);
-        if(date > lastVisit) lastVisit = date;
-        if(stats[site]) {
-          stats[site].visits += parseInt(v) || 0;
-          stats[site].clicks += parseInt(c) || 0;
-          stats[site].redirects += parseInt(r) || 0; // НОВОЕ
-          stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
-          stats[site].hasData = true;
-          if(date > stats[site].last) stats[site].last = date;
-        }
-      });
-
-      // Применяем пользовательский порядок сайтов
-      let sortedSiteEntries = Object.entries(stats);
-      if (siteOrder.length > 0) {
-          // Сначала отсортируем по имени сайта, чтобы не терять сайты, которых нет в siteOrder
-          sortedSiteEntries.sort((a, b) => a[0].localeCompare(b[0]));
-          // Затем сортируем по индексу в siteOrder
-          sortedSiteEntries.sort((a, b) => {
-              const indexA = siteOrder.indexOf(a[0]);
-              const indexB = siteOrder.indexOf(b[0]);
-              // Если сайт есть в siteOrder, используем его индекс, иначе ставим в конец
-              const finalIndexA = indexA === -1 ? Infinity : indexA;
-              const finalIndexB = indexB === -1 ? Infinity : indexB;
-              return finalIndexA - finalIndexB;
-          });
-      } else {
-          // Стандартная сортировка по визитам
-          sortedSiteEntries.sort(([,a],[,b])=>b.visits-a.visits);
-      }
-
-      const tbody = document.querySelector('#sitesTable tbody');
-      tbody.innerHTML = '';
-
-      // Применяем пользовательский порядок колонок
-      const theadRow = document.querySelector('#sitesTable thead tr');
-      const headerCells = Array.from(theadRow.children);
-      headerCells.forEach(cell => theadRow.removeChild(cell)); // Очищаем заголовки
-      columnOrder.forEach(colKey => {
-          const th = document.querySelector(`th[data-column="${colKey}"]`);
-          // Исправлено: Валидация header
-          if (th) {
-              theadRow.appendChild(th);
-          }
-      });
-
-      sortedSiteEntries.forEach(([site, d])=>{
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-site', site); // Для drag and drop
-        tr.classList.add('draggable'); // Для drag and drop
-        tr.draggable = true; // Для drag and drop
-        if (d.visits === 0 && d.clicks === 0 && d.redirects === 0) { // НОВОЕ
-          tr.classList.add('zero-stats');
-        }
-
-        // Создаем ячейки в порядке columnOrder
-        let cells = {};
-        cells.site = `<td title="${site}">${site}</td>`;
-        cells.visits = `<td>${d.visits}</td>`;
-        cells.unique = `<td>${d.unique}</td>`;
-        cells.clicks = `<td>${d.clicks}</td>`;
-        cells.redirects = `<td>${d.redirects}</td>`; // НОВОЕ
-        cells.comment = `<td><input type="text" class="comment-input" value="${comments[site] || ''}" placeholder="Комментарий" data-site="${site}"></td>`;
-        cells.last = `<td>${d.last.getTime() > 0 ? d.last.toLocaleString() : 'Нет данных'}</td>`;
-        cells.actions = `<td><button class="action-btn" onclick="resetSiteStats('${site}')"><i class="fas fa-eraser"></i> Сбросить</button></td>`;
-
-        columnOrder.forEach(colKey => {
-            if (cells[colKey] !== undefined) {
-                tr.innerHTML += cells[colKey];
+        });
+        // Заполняем статистику данными
+        rawData.forEach(([site, v, c, ts, dateOnly]) => {
+            const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
+            if(selectedDate && rowDate !== selectedDate) return;
+            const date = new Date(ts);
+            // if(date > lastVisit) lastVisit = date;
+            if(stats[site]) {
+            stats[site].visits += parseInt(v) || 0;
+            stats[site].clicks += parseInt(c) || 0;
+            stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
+            stats[site].hasData = true;
+            if(date > stats[site].last) stats[site].last = date;
             }
         });
 
-        tbody.appendChild(tr);
+        // Преобразуем stats в массив объектов tableData
+        tableData = Object.entries(stats).map(([site, d]) => ({
+            site: site,
+            visits: d.visits,
+            unique: d.unique,
+            clicks: d.clicks,
+            comment: comments[site] || '',
+            lastVisit: d.last.getTime() > 0 ? d.last : new Date(0), // Храним как Date object
+            hasData: d.hasData
+        }));
+    }
 
-        // Добавляем обработчик события change для нового input
-        const inputElement = tr.querySelector('.comment-input');
-        if (inputElement) {
-            inputElement.addEventListener('change', (e) => {
-                saveComment(site, e.target.value);
+    // ===== РЕНДЕР ТАБЛИЦЫ С ФИЛЬТРОМ И ПЕРЕТАСКИВАНИЕМ =====
+    function renderTable() {
+      renderTableHeader();
+      renderTableBody();
+      initDragAndDrop(); // Инициализируем перетаскивание после рендера
+    }
+
+    function renderTableHeader() {
+        const theadRow = document.getElementById('tableHeaderRow');
+        theadRow.innerHTML = '';
+        columnOrder.forEach((colId, index) => {
+            const th = document.createElement('th');
+            th.className = 'column-header draggable'; // Добавляем класс draggable
+            th.dataset.columnId = colId; // Для идентификации при перетаскивании
+            th.draggable = true; // Делаем заголовок перетаскиваемым
+
+            switch(colId) {
+                case 'site': th.textContent = 'Сайт'; th.style.width = '200px'; break;
+                case 'visits': th.textContent = 'Визиты'; th.style.width = '100px'; break;
+                case 'unique': th.textContent = 'Уникальные визиты'; th.style.width = '120px'; break;
+                case 'clicks': th.textContent = 'Клики WhatsApp'; th.style.width = '120px'; break;
+                case 'comment': th.textContent = 'Комментарий'; th.style.width = '250px'; break;
+                case 'lastVisit': th.textContent = 'Последний визит'; th.style.width = '150px'; break;
+                case 'actions': th.textContent = 'Действия'; th.style.width = '120px'; break;
+                default: th.textContent = colId;
+            }
+            theadRow.appendChild(th);
+        });
+        // Обработчики для заголовков столбцов добавляются в initDragAndDrop
+    }
+
+    function renderTableBody() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        
+        // Сортировка по умолчанию - по убыванию визитов
+        const sortedData = [...tableData].sort((a, b) => b.visits - a.visits);
+
+        sortedData.forEach((item, rowIndex) => {
+            const tr = document.createElement('tr');
+            tr.className = 'draggable-row'; // Класс для строк
+            tr.draggable = true; // Делаем строку перетаскиваемой
+            tr.dataset.site = item.site; // Для идентификации строки
+
+            if (item.visits === 0 && item.clicks === 0) {
+                tr.classList.add('zero-stats');
+            }
+
+            columnOrder.forEach(colId => {
+                const td = document.createElement('td');
+                switch(colId) {
+                    case 'site':
+                        td.title = item.site;
+                        td.textContent = item.site;
+                        break;
+                    case 'visits':
+                        td.textContent = item.visits;
+                        break;
+                    case 'unique':
+                        td.textContent = item.unique;
+                        break;
+                    case 'clicks':
+                        td.textContent = item.clicks;
+                        break;
+                    case 'comment':
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'comment-input';
+                        input.value = item.comment;
+                        input.placeholder = "Комментарий";
+                        input.dataset.site = item.site;
+                        // Добавляем обработчик события change для нового input
+                        input.addEventListener('change', (e) => {
+                            saveComment(item.site, e.target.value);
+                            // Обновляем данные в tableData
+                            const dataItem = tableData.find(d => d.site === item.site);
+                            if (dataItem) {
+                                dataItem.comment = e.target.value;
+                            }
+                        });
+                        td.appendChild(input);
+                        break;
+                    case 'lastVisit':
+                        td.textContent = item.lastVisit.getTime() > 0 ? item.lastVisit.toLocaleString() : 'Нет данных';
+                        break;
+                    case 'actions':
+                        const button = document.createElement('button');
+                        button.className = 'action-btn';
+                        button.innerHTML = '<i class="fas fa-eraser"></i> Сбросить';
+                        button.onclick = () => resetSiteStats(item.site);
+                        td.appendChild(button);
+                        break;
+                }
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+        // Обработчики для строк добавляются в initDragAndDrop
+    }
+
+    // ===== ФУНКЦИЯ ИНИЦИАЛИЗАЦИИ ПЕРЕТАСКИВАНИЯ =====
+    function initDragAndDrop() {
+        // --- Логика перетаскивания строк ---
+        const rows = document.querySelectorAll('.draggable-row');
+        let draggedRow = null;
+
+        rows.forEach(row => {
+            row.addEventListener('dragstart', (e) => {
+                draggedRow = row;
+                row.classList.add('dragging');
+                // Для Firefox
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', row.outerHTML); // Не используется, но может быть полезно
+            });
+
+            row.addEventListener('dragend', (e) => {
+                row.classList.remove('dragging');
+                // Убираем все классы drag-over
+                document.querySelectorAll('.drag-over, .drag-over-after').forEach(el => {
+                    el.classList.remove('drag-over', 'drag-over-after');
+                });
+                draggedRow = null;
+            });
+
+            row.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Необходимо для разрешения drop
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            row.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                // Убираем предыдущие классы
+                document.querySelectorAll('.drag-over, .drag-over-after').forEach(el => {
+                    el.classList.remove('drag-over', 'drag-over-after');
+                });
+
+                const bounding = row.getBoundingClientRect();
+                const offset = bounding.y + (bounding.height / 2);
+                if (e.clientY - offset > 0) {
+                    row.classList.add('drag-over-after');
+                } else {
+                    row.classList.add('drag-over');
+                }
+            });
+
+            row.addEventListener('dragleave', (e) => {
+                // Проверяем, действительно ли курсор покинул элемент
+                const rect = row.getBoundingClientRect();
+                if (e.clientY <= rect.top || e.clientY >= rect.bottom || e.clientX <= rect.left || e.clientX >= rect.right) {
+                    row.classList.remove('drag-over', 'drag-over-after');
+                }
+            });
+
+            row.addEventListener('drop', (e) => {
+                e.preventDefault();
+                row.classList.remove('drag-over', 'drag-over-after');
+                
+                if (draggedRow !== row) {
+                    const bounding = row.getBoundingClientRect();
+                    const offset = bounding.y + (bounding.height / 2);
+                    
+                    const tbody = document.getElementById('tableBody');
+                    if (e.clientY - offset > 0) {
+                        tbody.insertBefore(draggedRow, row.nextSibling);
+                    } else {
+                        tbody.insertBefore(draggedRow, row);
+                    }
+                    showMessage('Порядок строк изменен. Обновите страницу, чтобы сбросить.', 'warning');
+                }
+            });
+        });
+
+        // --- Логика перетаскивания заголовков столбцов ---
+        const headers = document.querySelectorAll('.column-header');
+        let draggedHeader = null;
+
+        headers.forEach((header, index) => {
+            // Инициализация ширины колонки (если не установлена)
+            if (!header.style.width) {
+                header.style.width = header.offsetWidth + 'px';
+            }
+
+            header.addEventListener('dragstart', (e) => {
+                draggedHeader = header;
+                header.classList.add('dragging');
+                // Для Firefox
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            header.addEventListener('dragend', (e) => {
+                header.classList.remove('dragging');
+                document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right').forEach(el => {
+                    el.classList.remove('drag-over-left', 'drag-over-right');
+                });
+                draggedHeader = null;
+            });
+
+            header.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Необходимо для разрешения drop
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            header.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                if (draggedHeader === header) return;
+
+                document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right').forEach(el => {
+                    el.classList.remove('drag-over-left', 'drag-over-right');
+                });
+
+                const bounding = header.getBoundingClientRect();
+                const midpoint = bounding.x + (bounding.width / 2);
+                if (e.clientX < midpoint) {
+                    header.classList.add('drag-over-left');
+                } else {
+                    header.classList.add('drag-over-right');
+                }
+            });
+
+            header.addEventListener('dragleave', (e) => {
+                 // Проверяем, действительно ли курсор покинул элемент
+                const rect = header.getBoundingClientRect();
+                if (e.clientY <= rect.top || e.clientY >= rect.bottom || e.clientX <= rect.left || e.clientX >= rect.right) {
+                    header.classList.remove('drag-over-left', 'drag-over-right');
+                }
+            });
+
+            header.addEventListener('drop', (e) => {
+                e.preventDefault();
+                header.classList.remove('drag-over-left', 'drag-over-right');
+                
+                if (draggedHeader && draggedHeader !== header) {
+                    const bounding = header.getBoundingClientRect();
+                    const midpoint = bounding.x + (bounding.width / 2);
+                    
+                    const oldIndex = columnOrder.indexOf(draggedHeader.dataset.columnId);
+                    const newIndex = columnOrder.indexOf(header.dataset.columnId);
+                    
+                    if (oldIndex > -1 && newIndex > -1) {
+                        // Удаляем элемент из старой позиции
+                        const movedItem = columnOrder.splice(oldIndex, 1)[0];
+                        // Вставляем в новую позицию
+                        // Если перетаскиваем вправо, индекс сдвигается
+                        const insertIndex = e.clientX < midpoint ? newIndex : newIndex + 1;
+                        // Корректируем индекс, если элемент был до новой позиции
+                        const finalIndex = oldIndex < insertIndex ? insertIndex - 1 : insertIndex;
+                        
+                        columnOrder.splice(finalIndex, 0, movedItem);
+                        
+                        renderTable(); // Перерисовываем таблицу с новым порядком
+                        showMessage('Порядок столбцов изменен. Обновите страницу, чтобы сбросить.', 'warning');
+                    }
+                }
+            });
+
+             // Добавляем обработчики изменения размера колонок
+             header.addEventListener('mousedown', (e) => {
+                if (e.offsetX > header.offsetWidth - 10) {
+                    isResizing = true;
+                    currentColumn = header;
+                    startX = e.pageX;
+                    startWidth = header.offsetWidth;
+                    document.body.style.cursor = 'col-resize';
+                    document.body.classList.add('resizing');
+                    e.preventDefault();
+                }
+                });
+
+        });
+    }
+
+    // ===== ФУНКЦИИ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА КОЛОНОК (обновленные)=====
+    document.addEventListener('mousemove', (e) => {
+        if (isResizing && currentColumn) {
+        const newWidth = startWidth + (e.pageX - startX);
+        if (newWidth > 50) { // Минимальная ширина колонки
+            currentColumn.style.width = newWidth + 'px';
+            // Обновляем ширину всех ячеек в этой колонке
+            const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
+            const rows = document.querySelectorAll('#sitesTable tr');
+            rows.forEach(row => {
+            const cell = row.children[columnIndex];
+            if (cell) {
+                cell.style.width = newWidth + 'px';
+            }
             });
         }
-      });
-
-      // Инициализируем drag and drop для строк
-      initRowDragAndDrop();
-    }
+        }
+    });
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+        isResizing = false;
+        currentColumn = null;
+        document.body.style.cursor = '';
+        document.body.classList.remove('resizing');
+        }
+    });
 
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
     // ✅ Исправленная версия от пользователя
@@ -447,7 +654,6 @@
       form.append('site', site);
       try {
         document.body.classList.add('loading');
-        // Исправлено: Применён .trim()
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
@@ -465,7 +671,6 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -473,7 +678,6 @@
       form.append('site', site);
       form.append('comment', comment);
       try {
-        // Исправлено: Применён .trim()
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form,
@@ -489,18 +693,20 @@
         console.error(err);
       }
     }
-
     // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
     function resetAllStats() {
       if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
       try {
         document.body.classList.add('loading');
         // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
-        // Формат row: [site, visits, clicks, timestamp, dateOnly, redirects]
         rawData = rawData.map(row => {
-          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0], '0'];
+          // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
+          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
+        processTableData(); // Перепроцессируем данные
         renderTable(); // Перерисовываем таблицу с обновленными данными
+        // Сбрасываем порядок столбцов
+        columnOrder = [...originalColumnOrder];
         showMessage('Вся статистика сброшена в панели!');
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в панели:', error);
@@ -509,15 +715,6 @@
         document.body.classList.remove('loading');
       }
     }
-
-    // ===== НОВАЯ ФУНКЦИЯ: СБРОС ПОРЯДКА САЙТОВ =====
-    function resetSiteOrder() {
-        siteOrder = [];
-        saveOrderToStorage();
-        renderTable(datePicker.value);
-        showMessage('Сортировка сайтов сброшена.');
-    }
-
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function showMessage(message, type = 'success') {
       hideMessage(); // Удаляем предыдущее сообщение, если оно есть
@@ -545,239 +742,31 @@
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
     }
-
-    // ===== ФУНКЦИИ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА КОЛОНОК =====
-    function initColumnResize() {
-      const headers = document.querySelectorAll('th');
-      headers.forEach(header => {
-        header.addEventListener('mousedown', (e) => {
-          if (e.offsetX > header.offsetWidth - 10) {
-            isResizing = true;
-            currentColumn = header;
-            startX = e.pageX;
-            startWidth = header.offsetWidth;
-            document.body.style.cursor = 'col-resize';
-            document.body.classList.add('resizing');
-            e.preventDefault();
-          }
-        });
-      });
-      document.addEventListener('mousemove', (e) => {
-        if (isResizing && currentColumn) {
-          const newWidth = startWidth + (e.pageX - startX);
-          if (newWidth > 50) { // Минимальная ширина колонки
-            currentColumn.style.width = newWidth + 'px';
-            // Обновляем ширину всех ячеек в этой колонке
-            const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
-            const rows = document.querySelectorAll('#sitesTable tr');
-            rows.forEach(row => {
-              const cell = row.children[columnIndex];
-              if (cell) {
-                cell.style.width = newWidth + 'px';
-              }
-            });
-          }
-        }
-      });
-      document.addEventListener('mouseup', () => {
-        if (isResizing) {
-          isResizing = false;
-          currentColumn = null;
-          document.body.style.cursor = '';
-          document.body.classList.remove('resizing');
-        }
-      });
-    }
-
-    // ===== Drag and Drop: Column Headers =====
-    function initColumnDragAndDrop() {
-        const headers = document.querySelectorAll('#sitesTable thead th');
-
-        headers.forEach(header => {
-            header.setAttribute('draggable', 'true');
-            header.classList.add('draggable');
-
-            header.addEventListener('dragstart', (e) => {
-                draggedElement = header;
-                draggedType = 'column';
-                header.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', header.dataset.column); // Передаем ключ колонки
-            });
-
-            header.addEventListener('dragend', () => {
-                header.classList.remove('dragging');
-                draggedElement = null;
-                draggedType = null;
-                document.querySelectorAll('#sitesTable th, #sitesTable td').forEach(cell => {
-                    cell.classList.remove('drag-over');
-                });
-            });
-
-            header.addEventListener('dragover', (e) => {
-                if (draggedType !== 'column') return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const rect = header.getBoundingClientRect();
-                const midX = rect.left + rect.width / 2;
-                if (e.clientX < midX) {
-                    header.classList.add('drag-over');
-                    header.classList.remove('drag-over-bottom');
-                } else {
-                    header.classList.remove('drag-over');
-                    header.classList.add('drag-over-bottom');
-                }
-            });
-
-            header.addEventListener('dragleave', () => {
-                header.classList.remove('drag-over', 'drag-over-bottom');
-            });
-
-            header.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if (draggedType !== 'column' || !draggedElement) return;
-
-                const draggedColumnKey = e.dataTransfer.getData('text/plain');
-                const targetColumnKey = header.dataset.column;
-
-                if (draggedColumnKey === targetColumnKey) return;
-
-                const draggedIndex = columnOrder.indexOf(draggedColumnKey);
-                const targetIndex = columnOrder.indexOf(targetColumnKey);
-
-                if (draggedIndex > -1 && targetIndex > -1) {
-                    // Удаляем перетаскиваемую колонку
-                    columnOrder.splice(draggedIndex, 1);
-                    // Вставляем её перед целевой
-                    const newTargetIndex = columnOrder.indexOf(targetColumnKey); // Индекс мог измениться
-                    columnOrder.splice(newTargetIndex, 0, draggedColumnKey);
-
-                    // Сохраняем новый порядок
-                    saveOrderToStorage();
-                    // Перерисовываем таблицу
-                    renderTable(datePicker.value);
-                    // UX: Сообщение о сохранении
-                    showMessage('Порядок колонок сохранён', 'success');
-                }
-
-                header.classList.remove('drag-over', 'drag-over-bottom');
-            });
-        });
-    }
-
-    // ===== Drag and Drop: Rows (Sites) =====
-    function initRowDragAndDrop() {
-        const rows = document.querySelectorAll('#sitesTable tbody tr');
-
-        rows.forEach(row => {
-            row.addEventListener('dragstart', (e) => {
-                if (e.target !== row) return; // Только если перетаскиваем саму строку, а не внутренний элемент
-                draggedElement = row;
-                draggedType = 'row';
-                row.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', row.dataset.site); // Передаем имя сайта
-            });
-
-            row.addEventListener('dragend', () => {
-                row.classList.remove('dragging');
-                draggedElement = null;
-                draggedType = null;
-                document.querySelectorAll('#sitesTable tbody tr').forEach(r => {
-                    r.classList.remove('drag-over', 'drag-over-bottom');
-                });
-            });
-
-            row.addEventListener('dragover', (e) => {
-                if (draggedType !== 'row') return;
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const rect = row.getBoundingClientRect();
-                const midY = rect.top + rect.height / 2;
-                if (e.clientY < midY) {
-                    row.classList.add('drag-over');
-                    row.classList.remove('drag-over-bottom');
-                } else {
-                    row.classList.remove('drag-over');
-                    row.classList.add('drag-over-bottom');
-                }
-            });
-
-            row.addEventListener('dragleave', () => {
-                row.classList.remove('drag-over', 'drag-over-bottom');
-            });
-
-            row.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if (draggedType !== 'row' || !draggedElement) return;
-
-                const draggedSite = e.dataTransfer.getData('text/plain');
-                const targetSite = row.dataset.site;
-
-                if (draggedSite === targetSite) return;
-
-                // Обновляем siteOrder
-                let currentOrder = siteOrder.length > 0 ? [...siteOrder] : [...new Set(rawData.map(r => r[0]))];
-                
-                const draggedIndex = currentOrder.indexOf(draggedSite);
-                const targetIndex = currentOrder.indexOf(targetSite);
-
-                if (draggedIndex > -1 && targetIndex > -1) {
-                    // Удаляем перетаскиваемый сайт
-                    currentOrder.splice(draggedIndex, 1);
-                    // Вставляем его перед целевым
-                    let newTargetIndex = currentOrder.indexOf(targetSite); // Индекс мог измениться
-                    // Исправлено: Проверка newTargetIndex
-                    if (newTargetIndex === -1) {
-                        // Если целевой сайт не найден в списке (например, он был удален), добавляем в конец
-                        currentOrder.push(draggedSite);
-                    } else {
-                        currentOrder.splice(newTargetIndex, 0, draggedSite);
-                    }
-
-                    siteOrder = currentOrder;
-                    // Сохраняем новый порядок
-                    saveOrderToStorage();
-                    // Перерисовываем таблицу
-                    renderTable(datePicker.value);
-                    // UX: Сообщение о сохранении
-                    showMessage('Порядок сайтов сохранён', 'success');
-                }
-
-                row.classList.remove('drag-over', 'drag-over-bottom');
-            });
-        });
-    }
-
-
+   
     // ===== УПРАВЛЕНИЕ ДАТОЙ =====
     const datePicker = document.getElementById('datePicker');
     datePicker.valueAsDate = new Date();
-    datePicker.addEventListener('change',()=>renderTable(datePicker.value));
+    datePicker.addEventListener('change',()=>{
+        processTableData(datePicker.value);
+        renderTable();
+    });
     document.querySelectorAll('.quickDate').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const offset = parseInt(btn.dataset.offset);
         const d = new Date();
         d.setDate(d.getDate()+offset);
         datePicker.valueAsDate = d;
-        renderTable(d.toISOString().split('T')[0]);
+        processTableData(d.toISOString().split('T')[0]);
+        renderTable();
       });
     });
-
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
     document.getElementById('resetAllBtn').addEventListener('click', resetAllStats);
-    // НОВОЕ: Обработчик для кнопки сброса сортировки сайтов
-    document.getElementById('resetSiteOrderBtn').addEventListener('click', resetSiteOrder);
-
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
-    // Инициализируем изменение размера колонок и drag and drop после загрузки таблицы
-    setTimeout(() => {
-        initColumnResize();
-        initColumnDragAndDrop(); // Инициализируем drag and drop для колонок
-        // initRowDragAndDrop вызывается внутри renderTable
-    }, 100);
+    // Инициализируем изменение размера колонок после загрузки таблицы
+    // setTimeout(initColumnResize, 100); // Убираем старую функцию
   </script>
 </body>
 </html>
