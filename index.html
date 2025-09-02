@@ -4,8 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Панель статистики с перетаскиванием</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css  "/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js  "></script>
   <style>
     :root{
       --bg:#0a0a0f;
@@ -249,7 +249,7 @@
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
     // Убедитесь, что URL не содержит пробелов и не заканчивается на /
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec  ';
     // ===== КЛЮЧИ ДЛЯ LOCAL STORAGE =====
     const COLUMN_ORDER_KEY = 'statsPanelColumnOrder';
     const ROW_ORDER_KEY = 'statsPanelRowOrder'; // Новый ключ для порядка строк
@@ -261,8 +261,10 @@
     let startX = 0;
     let startWidth = 0;
     let tableData = []; // Массив объектов для отображения в таблице
+    // let columnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'actions', 'lastVisit']; // Порядок колонок по умолчанию
     let columnOrder = ['site', 'visits', 'clicks', 'comment', 'actions']; // Порядок колонок по умолчанию (убраны 'unique', 'lastVisit')
-    let originalColumnOrder = [...columnOrder]; // Сохраняем оригинальный порядок
+    // let originalColumnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'actions', 'lastVisit']; // Сохраняем оригинальный порядок
+    let originalColumnOrder = ['site', 'visits', 'clicks', 'comment', 'actions']; // Сохраняем оригинальный порядок (убраны 'unique', 'lastVisit')
     let rowOrder = []; // Массив для хранения пользовательского порядка строк (сайтов)
     // ===== ГЕНЕРАЦИЯ И СОХРАНЕНИЕ UID =====
     function getCookie(n) {
@@ -305,7 +307,7 @@
         // Загружаем сохраненный порядок из localStorage
         loadSavedOrder();
         // Загружаем основные данные
-        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
+        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/  ${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
         if (!data.values || data.values.length < 2){
@@ -314,7 +316,7 @@
         }
         rawData = data.values.slice(1);
         // Загружаем комментарии из Google Sheets
-        const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
+        const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/  ${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
         const commentsRes = await fetch(commentsUrl);
         const commentsData = await commentsRes.json();
         comments = {}; // Сбрасываем локальный кэш
