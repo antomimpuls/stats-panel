@@ -298,43 +298,30 @@
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
-
         // Загружаем сохраненный порядок из localStorage
         loadSavedOrder();
-
         // Загружаем основные данные
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
-
         if (!data.values || data.values.length < 2){
           showError('В таблице нет данных');
           return;
         }
-
-        // Фильтруем данные, исключая записи от панели статистики
-        rawData = data.values.slice(1).filter(row => {
-          const site = row[0] || '';
-          // Исключаем сайт самой панели и, опционально, все сайты на github.io
-          return site !== 'antomimpuls.github.io' && !site.includes('github.io');
-        });
-
+        rawData = data.values.slice(1);
         // Загружаем комментарии из Google Sheets
         const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
         const commentsRes = await fetch(commentsUrl);
         const commentsData = await commentsRes.json();
         comments = {}; // Сбрасываем локальный кэш
-
         if (commentsData.values && commentsData.values.length > 1) {
             // Начинаем с 1, чтобы пропустить заголовки
             commentsData.values.slice(1).forEach(([site, comment]) => {
-                // Фильтруем комментарии аналогично основным данным
-                if (site && site !== 'antomimpuls.github.io' && !site.includes('github.io')) {
+                if (site) { // Проверяем, что сайт указан
                     comments[site] = comment || ''; // Сохраняем комментарий или пустую строку
                 }
             });
         }
-
         await processTableData(); // <--- async
         renderTable(); // Рендерим таблицу с учетом текущего порядка столбцов и строк
         hideMessage(); // Скрываем сообщение после загрузки
@@ -396,40 +383,32 @@
     // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
     async function processTableData(selectedDate = new Date().toISOString().split('T')[0]) { // <--- async
         const stats = {};
-        // Собираем все уникальные сайты, дополнительно фильтруя их
-        const allSites = [...new Set(rawData.map(row => row[0]).filter(site =>
-            site && site !== 'antomimpuls.github.io' && !site.includes('github.io')
-        ))];
-
+        // Собираем все уникальные сайты
+        const allSites = [...new Set(rawData.map(row => row[0]))];
         // Инициализируем статистику для всех сайтов
         allSites.forEach(site => {
             if (!stats[site]) {
-                stats[site] = {
-                    visits: 0,
-                    clicks: 0,
-                    unique: 0, // Инициализируем, но не используем локально
-                    last: new Date(0),
-                    hasData: false
-                };
+            stats[site] = {
+                visits: 0,
+                clicks: 0,
+                unique: 0, // Инициализируем, но не используем локально
+                last: new Date(0),
+                hasData: false
+            };
             }
         });
-
         // Заполняем статистику данными (визиты, клики, последний визит)
         rawData.forEach(([site, v, c, ts, dateOnly]) => {
-            // Дополнительная проверка внутри цикла на случай
-            if (site === 'antomimpuls.github.io' || site.includes('github.io')) return;
-
             const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
             if(selectedDate && rowDate !== selectedDate) return;
             const date = new Date(ts);
             if(stats[site]) {
-                stats[site].visits += parseInt(v) || 0;
-                stats[site].clicks += parseInt(c) || 0;
-                stats[site].hasData = true;
-                if(date > stats[site].last) stats[site].last = date;
+            stats[site].visits += parseInt(v) || 0;
+            stats[site].clicks += parseInt(c) || 0;
+            stats[site].hasData = true;
+            if(date > stats[site].last) stats[site].last = date;
             }
         });
-
         // Преобразуем stats в массив объектов tableData с асинхронным запросом уникальных визитов
         const promises = Object.entries(stats).map(async ([site, d]) => ({
             site: site,
@@ -442,7 +421,6 @@
             hasData: d.hasData
         }));
         tableData = await Promise.all(promises); // <--- Дожидаемся завершения всех запросов
-
         // Применяем пользовательский порядок строк, если он есть
         if (rowOrder.length > 0) {
             // Сортируем tableData в соответствии с rowOrder
@@ -925,7 +903,7 @@
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     (async () => {
         // Отправляем статистику при загрузке
-        await handleSaveStats();
+        // await handleSaveStats(); // <-- ЗАКОММЕНТИРОВАНО! Панель больше не отправляет статистику сама
         // Загружаем данные для отображения
         await loadStats();
     })();
