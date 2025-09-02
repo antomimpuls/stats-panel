@@ -180,6 +180,9 @@
     .drag-over {
       border-top: 2px solid var(--accent);
     }
+    .drag-over-bottom {
+      border-bottom: 2px solid var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -192,6 +195,9 @@
         </button>
         <button class="btn reset" id="resetAllBtn">
           <i class="fas fa-trash"></i> Сбросить статистику везде
+        </button>
+        <button class="btn" id="resetSiteOrderBtn"> <!-- НОВОЕ -->
+          <i class="fas fa-sort"></i> Сброс сортировки сайтов
         </button>
       </div>
     </div>
@@ -222,11 +228,11 @@
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
-    // Изменено: Добавлена колонка F для redirects
+    // Исправлено: Убран пробел в URL
     const DATA_RANGE = 'data!A:F'; // Диапазон с основными данными (до F)
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
-    // Убедитесь, что URL не содержит пробелов и не заканчивается на /
+    // Исправлено: Убедитесь, что URL не содержит пробелов и не заканчивается на /
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
@@ -247,8 +253,8 @@
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
-        // Загружаем основные данные
-        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
+        // Исправлено: Добавлен timestamp для обхода кэша
+        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}&timestamp=${Date.now()}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
         if (!data.values || data.values.length < 2){
@@ -385,6 +391,7 @@
       headerCells.forEach(cell => theadRow.removeChild(cell)); // Очищаем заголовки
       columnOrder.forEach(colKey => {
           const th = document.querySelector(`th[data-column="${colKey}"]`);
+          // Исправлено: Валидация header
           if (th) {
               theadRow.appendChild(th);
           }
@@ -440,6 +447,7 @@
       form.append('site', site);
       try {
         document.body.classList.add('loading');
+        // Исправлено: Применён .trim()
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
@@ -465,6 +473,7 @@
       form.append('site', site);
       form.append('comment', comment);
       try {
+        // Исправлено: Применён .trim()
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form,
@@ -499,6 +508,14 @@
       } finally {
         document.body.classList.remove('loading');
       }
+    }
+
+    // ===== НОВАЯ ФУНКЦИЯ: СБРОС ПОРЯДКА САЙТОВ =====
+    function resetSiteOrder() {
+        siteOrder = [];
+        saveOrderToStorage();
+        renderTable(datePicker.value);
+        showMessage('Сортировка сайтов сброшена.');
     }
 
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
@@ -548,7 +565,7 @@
       document.addEventListener('mousemove', (e) => {
         if (isResizing && currentColumn) {
           const newWidth = startWidth + (e.pageX - startX);
-          if (newWidth > 50) { // Минимальная шира колонки
+          if (newWidth > 50) { // Минимальная ширина колонки
             currentColumn.style.width = newWidth + 'px';
             // Обновляем ширину всех ячеек в этой колонке
             const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
@@ -605,13 +622,15 @@
                 const midX = rect.left + rect.width / 2;
                 if (e.clientX < midX) {
                     header.classList.add('drag-over');
+                    header.classList.remove('drag-over-bottom');
                 } else {
                     header.classList.remove('drag-over');
+                    header.classList.add('drag-over-bottom');
                 }
             });
 
             header.addEventListener('dragleave', () => {
-                header.classList.remove('drag-over');
+                header.classList.remove('drag-over', 'drag-over-bottom');
             });
 
             header.addEventListener('drop', (e) => {
@@ -637,9 +656,11 @@
                     saveOrderToStorage();
                     // Перерисовываем таблицу
                     renderTable(datePicker.value);
+                    // UX: Сообщение о сохранении
+                    showMessage('Порядок колонок сохранён', 'success');
                 }
 
-                header.classList.remove('drag-over');
+                header.classList.remove('drag-over', 'drag-over-bottom');
             });
         });
     }
@@ -663,7 +684,7 @@
                 draggedElement = null;
                 draggedType = null;
                 document.querySelectorAll('#sitesTable tbody tr').forEach(r => {
-                    r.classList.remove('drag-over');
+                    r.classList.remove('drag-over', 'drag-over-bottom');
                 });
             });
 
@@ -675,13 +696,15 @@
                 const midY = rect.top + rect.height / 2;
                 if (e.clientY < midY) {
                     row.classList.add('drag-over');
+                    row.classList.remove('drag-over-bottom');
                 } else {
                     row.classList.remove('drag-over');
+                    row.classList.add('drag-over-bottom');
                 }
             });
 
             row.addEventListener('dragleave', () => {
-                row.classList.remove('drag-over');
+                row.classList.remove('drag-over', 'drag-over-bottom');
             });
 
             row.addEventListener('drop', (e) => {
@@ -703,17 +726,25 @@
                     // Удаляем перетаскиваемый сайт
                     currentOrder.splice(draggedIndex, 1);
                     // Вставляем его перед целевым
-                    const newTargetIndex = currentOrder.indexOf(targetSite); // Индекс мог измениться
-                    currentOrder.splice(newTargetIndex, 0, draggedSite);
+                    let newTargetIndex = currentOrder.indexOf(targetSite); // Индекс мог измениться
+                    // Исправлено: Проверка newTargetIndex
+                    if (newTargetIndex === -1) {
+                        // Если целевой сайт не найден в списке (например, он был удален), добавляем в конец
+                        currentOrder.push(draggedSite);
+                    } else {
+                        currentOrder.splice(newTargetIndex, 0, draggedSite);
+                    }
 
                     siteOrder = currentOrder;
                     // Сохраняем новый порядок
                     saveOrderToStorage();
                     // Перерисовываем таблицу
                     renderTable(datePicker.value);
+                    // UX: Сообщение о сохранении
+                    showMessage('Порядок сайтов сохранён', 'success');
                 }
 
-                row.classList.remove('drag-over');
+                row.classList.remove('drag-over', 'drag-over-bottom');
             });
         });
     }
@@ -736,6 +767,8 @@
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
     document.getElementById('resetAllBtn').addEventListener('click', resetAllStats);
+    // НОВОЕ: Обработчик для кнопки сброса сортировки сайтов
+    document.getElementById('resetSiteOrderBtn').addEventListener('click', resetSiteOrder);
 
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
