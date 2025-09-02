@@ -50,7 +50,6 @@
     }
     .btn:hover{opacity:.8}
     .btn.reset{background:#ff4757}
-    
     table{
       width:100%;
       border-collapse:collapse;
@@ -87,7 +86,6 @@
       opacity: 0.8;
     }
     tr:hover{background:#1f1f2a}
-    
     .action-btn{
       background:var(--accent);
       border:0;
@@ -99,7 +97,6 @@
       transition:.25s;
     }
     .action-btn:hover{opacity:.8}
-    
     .comment-input{
       background:var(--card);
       border:1px solid #333;
@@ -115,7 +112,6 @@
       outline:none;
       border-color:var(--accent);
     }
-
     /* --- Фильтр дат --- */
     #dateFilter{
       display:flex;
@@ -146,21 +142,17 @@
     }
     .quickDate:hover{opacity:.8}
     .error{color:#ff4757;text-align:center;padding:20px}
-    
     .resizing {
       cursor: col-resize !important;
       user-select: none;
     }
-    
     .loading {
       opacity: 0.7;
       pointer-events: none;
     }
-    
     .zero-stats {
       opacity: 0.6;
     }
-    
     .success-message {
       background: #4CAF50;
       color: white;
@@ -169,7 +161,6 @@
       margin: 10px 0;
       text-align: center;
     }
-
     .warning-message {
       background: #ff9800;
       color: white;
@@ -193,7 +184,6 @@
         </button>
       </div>
     </div>
-
     <div id="dateFilter">
       <i class="fa-solid fa-calendar-days" style="font-size:1.3em;color:var(--accent)"></i>
       <input type="date" id="datePicker">
@@ -201,7 +191,6 @@
       <button class="quickDate" data-offset="-1">Вчера</button>
       <button class="quickDate" data-offset="0">Сегодня</button>
     </div>
-
     <table id="sitesTable">
       <thead>
         <tr>
@@ -217,7 +206,6 @@
       <tbody></tbody>
     </table>
   </div>
-
   <script>
     // ===== НАСТРОЙКИ =====
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
@@ -226,7 +214,6 @@
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
-
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
     let comments = {}; // Комментарии из Google Sheets
@@ -234,13 +221,11 @@
     let currentColumn = null;
     let startX = 0;
     let startWidth = 0;
-
     // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
-
         // Загружаем основные данные
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
@@ -250,7 +235,6 @@
           return;
         }
         rawData = data.values.slice(1);
-
         // Загружаем комментарии из Google Sheets
         const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
         const commentsRes = await fetch(commentsUrl);
@@ -264,7 +248,6 @@
                 }
             });
         }
-
         renderTable();
         hideMessage(); // Скрываем сообщение после загрузки
       } catch (e){ 
@@ -274,15 +257,12 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== РЕНДЕР ТАБЛИЦЫ С ФИЛЬТРОМ =====
     function renderTable(dateStr = new Date().toISOString().split('T')[0]) {
       const stats = {};
       let lastVisit = new Date(0);
-
       // Собираем все уникальные сайты
       const allSites = [...new Set(rawData.map(row => row[0]))];
-
       // Инициализируем статистику для всех сайтов
       allSites.forEach(site => {
         if (!stats[site]) {
@@ -295,28 +275,22 @@
           };
         }
       });
-
       // Заполняем статистику данными
       rawData.forEach(([site, v, c, ts, dateOnly]) => {
         const rowDate = dateOnly || new Date(ts).toISOString().split('T')[0];
         if(dateStr && rowDate !== dateStr) return;
-
         const date = new Date(ts);
         if(date > lastVisit) lastVisit = date;
-
         if(stats[site]) {
           stats[site].visits += parseInt(v) || 0;
           stats[site].clicks += parseInt(c) || 0;
           stats[site].unique += (parseInt(v) || 0) > 0 ? 1 : 0;
           stats[site].hasData = true;
-          
           if(date > stats[site].last) stats[site].last = date;
         }
       });
-
       const tbody = document.querySelector('#sitesTable tbody');
       tbody.innerHTML = '';
-      
       Object.entries(stats)
         .sort(([,a],[,b])=>b.visits-a.visits)
         .forEach(([site,d])=>{
@@ -324,7 +298,6 @@
           if (d.visits === 0 && d.clicks === 0) {
             tr.classList.add('zero-stats');
           }
-          
           tr.innerHTML = `
             <td title="${site}">${site}</td>
             <td>${d.visits}</td>
@@ -342,13 +315,43 @@
               <!-- Кнопка удаления убрана, так как мы не хотим удалять из таблицы -->
             </td>`;
           tbody.appendChild(tr);
-
           // Добавляем обработчик события change для нового input
           const inputElement = tr.querySelector('.comment-input');
           inputElement.addEventListener('change', (e) => {
               saveComment(site, e.target.value);
           });
         });
+    }
+    
+    // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
+    async function resetSiteStats(site) {
+      if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
+
+      const form = new URLSearchParams();
+      form.append('action', 'resetSiteStats');
+      form.append('site', site);
+
+      try {
+        document.body.classList.add('loading');
+
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: form
+        });
+
+        const txt = await res.text();
+        const data = JSON.parse(txt);
+
+        if (data.status !== 'success') throw new Error(data.message);
+
+        showMessage(`Статистика для ${site} обнулена в таблице!`);
+        loadStats(); // перезагружаем данные в панели
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+        console.error(err);
+      } finally {
+        document.body.classList.remove('loading');
+      }
     }
 
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
@@ -357,17 +360,14 @@
       form.append('action', 'saveComment');
       form.append('site', site);
       form.append('comment', comment);
-
       try {
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: form,
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
-
         const txt = await res.text();
         const data = JSON.parse(txt);
-
         if (data.status !== 'success') throw new Error(data.message);
         console.log('Комментарий сохранён');
         showMessage('Комментарий сохранён!');
@@ -376,50 +376,18 @@
         console.error(err);
       }
     }
-
     // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
-    function resetSiteStats(site) {
-      if(!confirm(`Вы уверены, что хотите сбросить статистику для сайта ${site} ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.`)) return;
-      
-      try {
-        document.body.classList.add('loading');
-        
-        // Обновляем локальные данные rawData, обнуляя статистику для конкретного сайта
-        rawData = rawData.map(row => {
-          if (row[0] === site) {
-            // Сохраняем сайт, дату, но обнуляем визиты и клики
-            // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
-            return [site, '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
-          }
-          return row;
-        });
-        
-        renderTable(); // Перерисовываем таблицу с обновленными данными
-        showMessage(`Статистика для сайта ${site} сброшена в панели!`);
-        
-      } catch (error) {
-        console.error('Ошибка при сбросе статистики в панели:', error);
-        alert('Ошибка при сбросе статистики в панели: ' + error.message);
-      } finally {
-        document.body.classList.remove('loading');
-      }
-    }
-
     function resetAllStats() {
       if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
-      
       try {
         document.body.classList.add('loading');
-        
         // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
         rawData = rawData.map(row => {
           // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
           return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
-        
         renderTable(); // Перерисовываем таблицу с обновленными данными
         showMessage('Вся статистика сброшена в панели!');
-        
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в панели:', error);
         alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
@@ -427,7 +395,6 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function showMessage(message, type = 'success') {
       hideMessage(); // Удаляем предыдущее сообщение, если оно есть
@@ -436,7 +403,6 @@
       messageDiv.textContent = message;
       messageDiv.id = 'tempMessage'; // Добавляем ID для удобства удаления
       document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
-      
       if (type === 'success') {
           // Удаляем сообщение об успехе через 3 секунды
           setTimeout(() => {
@@ -447,23 +413,18 @@
       }
       // Предупреждающие сообщения (например, о загрузке) удаляются вручную
     }
-
     function hideMessage() {
         const existingMessage = document.getElementById('tempMessage');
         if (existingMessage) {
             existingMessage.remove();
         }
     }
-
-
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
     }
-
     // ===== ФУНКЦИИ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА КОЛОНОК =====
     function initColumnResize() {
       const headers = document.querySelectorAll('th');
-      
       headers.forEach(header => {
         header.addEventListener('mousedown', (e) => {
           if (e.offsetX > header.offsetWidth - 10) {
@@ -471,25 +432,20 @@
             currentColumn = header;
             startX = e.pageX;
             startWidth = header.offsetWidth;
-            
             document.body.style.cursor = 'col-resize';
             document.body.classList.add('resizing');
-            
             e.preventDefault();
           }
         });
       });
-      
       document.addEventListener('mousemove', (e) => {
         if (isResizing && currentColumn) {
           const newWidth = startWidth + (e.pageX - startX);
           if (newWidth > 50) { // Минимальная ширина колонки
             currentColumn.style.width = newWidth + 'px';
-            
             // Обновляем ширину всех ячеек в этой колонке
             const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
             const rows = document.querySelectorAll('#sitesTable tr');
-            
             rows.forEach(row => {
               const cell = row.children[columnIndex];
               if (cell) {
@@ -499,7 +455,6 @@
           }
         }
       });
-      
       document.addEventListener('mouseup', () => {
         if (isResizing) {
           isResizing = false;
@@ -509,12 +464,10 @@
         }
       });
     }
-
     // ===== УПРАВЛЕНИЕ ДАТОЙ =====
     const datePicker = document.getElementById('datePicker');
     datePicker.valueAsDate = new Date();
     datePicker.addEventListener('change',()=>renderTable(datePicker.value));
-
     document.querySelectorAll('.quickDate').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const offset = parseInt(btn.dataset.offset);
@@ -524,14 +477,11 @@
         renderTable(d.toISOString().split('T')[0]);
       });
     });
-
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
     document.getElementById('resetAllBtn').addEventListener('click', resetAllStats);
-
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
-    
     // Инициализируем изменение размера колонок после загрузки таблицы
     setTimeout(initColumnResize, 100);
   </script>
