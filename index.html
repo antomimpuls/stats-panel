@@ -213,6 +213,7 @@
     const DATA_RANGE = 'data!A:E'; // Диапазон с основными данными
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
     // ВАЖНО: Замените этот URL на тот, который вы получили после развертывания НОВОГО Apps Script
+    // Убедитесь, что URL не содержит пробелов и не заканчивается на /
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
@@ -324,6 +325,7 @@
     }
     
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
+    // ✅ Исправленная версия от пользователя
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
 
@@ -334,9 +336,10 @@
       try {
         document.body.classList.add('loading');
 
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
+          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
 
         const txt = await res.text();
@@ -344,7 +347,7 @@
 
         if (data.status !== 'success') throw new Error(data.message);
 
-        showMessage(`Статистика для ${site} обнулена в таблице!`);
+        showMessage(`Статистика для ${site} обнулена (${data.message})`);
         loadStats(); // перезагружаем данные в панели
       } catch (err) {
         alert('Ошибка: ' + err.message);
@@ -361,7 +364,7 @@
       form.append('site', site);
       form.append('comment', comment);
       try {
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form,
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
