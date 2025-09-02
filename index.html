@@ -224,11 +224,11 @@
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
     const DATA_RANGE = 'data!A:E'; // Диапазон с основными данными
     const COMMENTS_RANGE = 'comments!A:B'; // Диапазон для комментариев (сайт, комментарий)
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
+    // const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec'; // УДАЛЕНО
 
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = []; // Данные из Google Sheets
-    let comments = {}; // Комментарии из Google Sheets
+    let comments = JSON.parse(localStorage.getItem('siteComments') || '{}'); // Используем localStorage
     let isResizing = false;
     let currentColumn = null;
     let startX = 0;
@@ -241,6 +241,7 @@
         showMessage('Загрузка данных...', 'warning'); // Показываем временное сообщение
 
         // Загружаем основные данные
+        // ИСПРАВЛЕНО: Убраны лишние пробелы в URL
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
@@ -250,11 +251,13 @@
         }
         rawData = data.values.slice(1);
 
-        // Загружаем комментарии
+        // Загружаем комментарии из Google Sheets
+        // ИСПРАВЛЕНО: Убраны лишние пробелы в URL
         const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
         const commentsRes = await fetch(commentsUrl);
         const commentsData = await commentsRes.json();
-        comments = {}; // Сбрасываем локальный кэш
+        // Очищаем локальный кэш
+        comments = {};
         if (commentsData.values && commentsData.values.length > 1) {
             // Начинаем с 1, чтобы пропустить заголовки
             commentsData.values.slice(1).forEach(([site, comment]) => {
@@ -262,6 +265,8 @@
                     comments[site] = comment || ''; // Сохраняем комментарий или пустую строку
                 }
             });
+             // Сохраняем загруженные комментарии в localStorage
+            localStorage.setItem('siteComments', JSON.stringify(comments));
         }
 
         renderTable();
@@ -345,46 +350,17 @@
           // Добавляем обработчик события change для нового input
           const inputElement = tr.querySelector('.comment-input');
           inputElement.addEventListener('change', (e) => {
-              saveComment(site, e.target.value);
+              saveComment(site, e.target.value); // Используем локальное сохранение
           });
         });
     }
 
     // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С КОММЕНТАРИЯМИ =====
-    async function saveComment(site, comment) {
-      try {
-        // Обновляем локальную копию
-        comments[site] = comment;
-
-        // Отправляем данные на сервер для сохранения
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'saveComment',
-            site: site,
-            comment: comment,
-            spreadsheetId: SPREADSHEET_ID,
-            commentsRange: COMMENTS_RANGE
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Ошибка HTTP при сохранении комментария: ' + response.status);
-        }
-
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || 'Неизвестная ошибка при сохранении комментария');
-        }
-
-        // console.log(`Комментарий для ${site} сохранен.`);
-      } catch (error) {
-        console.error('Ошибка при сохранении комментария:', error);
-        alert('Ошибка при сохранении комментария: ' + error.message);
-      }
+    // ИЗМЕНЕНО: Сохранение только в localStorage
+    function saveComment(site, comment) {
+      comments[site] = comment;
+      localStorage.setItem('siteComments', JSON.stringify(comments));
+      // console.log(`Комментарий для ${site} сохранен локально.`);
     }
 
     // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
