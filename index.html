@@ -323,23 +323,30 @@
           });
         });
     }
+    
     // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
     // ✅ Исправленная версия от пользователя
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
+
       const form = new URLSearchParams();
       form.append('action', 'resetSiteStats');
       form.append('site', site);
+
       try {
         document.body.classList.add('loading');
+
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
           body: form
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
+
         const txt = await res.text();
         const data = JSON.parse(txt);
+
         if (data.status !== 'success') throw new Error(data.message);
+
         showMessage(`Статистика для ${site} обнулена (${data.message})`);
         loadStats(); // перезагружаем данные в панели
       } catch (err) {
@@ -349,6 +356,7 @@
         document.body.classList.remove('loading');
       }
     }
+
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -372,7 +380,6 @@
       }
     }
     // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
-    // Обновленная версия без alert, показывает сообщение в интерфейсе
     function resetAllStats() {
       if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
       try {
@@ -383,11 +390,10 @@
           return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
         renderTable(); // Перерисовываем таблицу с обновленными данными
-        showMessage('Вся статистика сброшена в панели!'); // Показываем сообщение в интерфейсе
+        showMessage('Вся статистика сброшена в панели!');
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в панели:', error);
-        // ВМЕСТО alert, показываем сообщение в интерфейсе
-        showMessage('Произошла ошибка при сбросе в панели (см. консоль).', 'warning');
+        alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
       } finally {
         document.body.classList.remove('loading');
       }
