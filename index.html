@@ -371,28 +371,23 @@
         console.error(err);
       }
     }
-    // ===== ФУНКЦИЯ СБРОСА СТАТИСТИКИ ВСЕХ САЙТОВ (РЕАЛЬНО В ТАБЛИЦЕ) =====
-    async function resetAllStats() {
-      if (!confirm('Обнулить статистику ВСЕХ сайтов в таблице?')) return;
-
-      document.body.classList.add('loading');
-
+    // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
+    // Обновленная версия без alert, показывает сообщение в интерфейсе
+    function resetAllStats() {
+      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
       try {
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: new URLSearchParams({ action: 'resetAllSites' })
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
+        document.body.classList.add('loading');
+        // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
+        rawData = rawData.map(row => {
+          // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
+          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
         });
-        const txt = await res.text();
-        const data = JSON.parse(txt);
-
-        if (data.status !== 'success') throw new Error(data.message);
-
-        showMessage('Статистика обнулена для всех сайтов!');
-        loadStats(); // перезагружаем таблицу
-      } catch (err) {
-        alert('Ошибка: ' + err.message);
-        console.error(err);
+        renderTable(); // Перерисовываем таблицу с обновленными данными
+        showMessage('Вся статистика сброшена в панели!'); // Показываем сообщение в интерфейсе
+      } catch (error) {
+        console.error('Ошибка при сбросе всей статистики в панели:', error);
+        // ВМЕСТО alert, показываем сообщение в интерфейсе
+        showMessage('Произошла ошибка при сбросе в панели (см. консоль).', 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
