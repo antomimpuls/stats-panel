@@ -212,10 +212,15 @@
         <button class="btn" id="refreshBtn">
           <i class="fas fa-sync-alt"></i> Обновить статистику
         </button>
-        <button class="btn reset" id="resetAllBtn">
+        <!-- Кнопка для сброса в таблице -->
+        <button class="btn reset" id="resetAllSheetsBtn">
           <i class="fas fa-trash"></i> Сбросить статистику везде
         </button>
-         <button class="btn" id="resetOrderBtn">
+        <!-- Кнопка для сброса только в панели -->
+        <button class="btn" id="resetAllLocalBtn">
+          <i class="fas fa-broom"></i> Сбросить локально
+        </button>
+        <button class="btn" id="resetOrderBtn">
           <i class="fas fa-undo"></i> Сбросить порядок
         </button>
       </div>
@@ -695,17 +700,18 @@
         document.body.classList.remove('resizing');
         }
     });
-    // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ ДЛЯ ОДНОГО САЙТА =====
+    // ===== НОВАЯ ФУНКЦИЯ: СБРОС СТАТИСТИКИ В ТАБЛИЦЕ =====
+    // ✅ Исправленная версия от пользователя
     async function resetSiteStats(site) {
       if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
-      const form = new URLSearchParams(); // Используем URLSearchParams
+      const form = new URLSearchParams();
       form.append('action', 'resetSiteStats');
       form.append('site', site);
       try {
         document.body.classList.add('loading');
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
           method: 'POST',
-          body: form // Отправляем form как тело
+          body: form
           // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
         });
         const txt = await res.text();
@@ -720,40 +726,6 @@
         document.body.classList.remove('loading');
       }
     }
-
-    // ===== ФУНКЦИЯ СБРОСА ВСЕЙ СТАТИСТИКИ (И В ТАБЛИЦЕ, И В ПАНЕЛИ) =====
-    async function resetAllStats() {
-      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
-
-      try {
-        document.body.classList.add('loading');
-        showMessage('Сбрасываем всю статистику...', 'warning');
-
-        const form = new URLSearchParams(); // Используем URLSearchParams
-        form.append('action', 'resetAllStats');
-
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: form // Отправляем form как тело
-          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
-        });
-
-        const txt = await res.text();
-        const data = JSON.parse(txt);
-
-        if (data.status !== 'success') throw new Error(data.message);
-
-        showMessage('Вся статистика сброшена!');
-        loadStats(); // перезагружаем данные в панели
-
-      } catch (error) {
-        console.error('Ошибка при сбросе всей статистики:', error);
-        alert('Ошибка при сбросе всей статистики: ' + error.message);
-      } finally {
-        document.body.classList.remove('loading');
-      }
-    }
-
     // ===== УПРОЩЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ КОММЕНТАРИЕВ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -776,6 +748,61 @@
         console.error(err);
       }
     }
+    // ===== ФУНКЦИИ СБРОСА СТАТИСТИКИ (ТОЛЬКО В ПАНЕЛИ) =====
+    function resetAllStats() {
+      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику ТОЛЬКО в этой панели? Данные в таблице останутся неизменными.')) return;
+      try {
+        document.body.classList.add('loading');
+        // Обновляем локальные данные rawData, обнуляя статистику для всех сайтов
+        rawData = rawData.map(row => {
+          // Предполагаем, что формат row: [site, visits, clicks, timestamp, dateOnly]
+          return [row[0], '0', '0', row[3] || new Date().toISOString(), row[4] || new Date().toISOString().split('T')[0]];
+        });
+        processTableData(); // Перепроцессируем данные
+        renderTable(); // Перерисовываем таблицу с обновленными данными
+        // НЕ сбрасываем порядок столбцов и строк
+        showMessage('Вся статистика сброшена в панели!');
+      } catch (error) {
+        console.error('Ошибка при сбросе всей статистики в панели:', error);
+        alert('Ошибка при сбросе всей статистики в панели: ' + error.message);
+      } finally {
+        document.body.classList.remove('loading');
+      }
+    }
+
+    // ===== НОВАЯ ФУНКЦИЯ: СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
+    async function resetAllStatsInSheets() {
+      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
+
+      try {
+        document.body.classList.add('loading');
+        showMessage('Сбрасываем всю статистику в таблице...', 'warning');
+
+        const form = new URLSearchParams();
+        form.append('action', 'resetAllStats');
+
+        const res = await fetch(APPS_SCRIPT_URL.trim(), {
+          method: 'POST',
+          body: form
+          // НЕ ставим headers — браузер сам добавит Content-Type: application/x-www-form-urlencoded
+        });
+
+        const txt = await res.text();
+        const data = JSON.parse(txt);
+
+        if (data.status !== 'success') throw new Error(data.message);
+
+        showMessage('Вся статистика в таблице сброшена!');
+        loadStats(); // перезагружаем данные в панели из таблицы
+
+      } catch (error) {
+        console.error('Ошибка при сбросе всей статистики в таблице:', error);
+        alert('Ошибка при сбросе всей статистики в таблице: ' + error.message);
+      } finally {
+        document.body.classList.remove('loading');
+      }
+    }
+
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function showMessage(message, type = 'success') {
       hideMessage(); // Удаляем предыдущее сообщение, если оно есть
@@ -822,8 +849,11 @@
     });
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', loadStats);
-    document.getElementById('resetAllBtn').addEventListener('click', resetAllStats);
-    document.getElementById('resetOrderBtn').addEventListener('click', resetOrder); // Новый обработчик
+    // Обработчик для сброса в таблице
+    document.getElementById('resetAllSheetsBtn').addEventListener('click', resetAllStatsInSheets);
+    // Обработчик для локального сброса
+    document.getElementById('resetAllLocalBtn').addEventListener('click', resetAllStats);
+    document.getElementById('resetOrderBtn').addEventListener('click', resetOrder);
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
     // Инициализируем изменение размера колонок после загрузки таблицы
