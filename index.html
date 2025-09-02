@@ -261,7 +261,7 @@
     let startX = 0;
     let startWidth = 0;
     let tableData = []; // Массив объектов для отображения в таблице
-    let columnOrder = ['site', 'visits', 'unique', 'clicks', 'comment', 'lastVisit', 'actions']; // Порядок колонок по умолчанию
+    let columnOrder = ['site', 'visits', 'clicks', 'comment', 'actions']; // Порядок колонок по умолчанию (убраны 'unique', 'lastVisit')
     let originalColumnOrder = [...columnOrder]; // Сохраняем оригинальный порядок
     let rowOrder = []; // Массив для хранения пользовательского порядка строк (сайтов)
     // ===== ГЕНЕРАЦИЯ И СОХРАНЕНИЕ UID =====
@@ -426,7 +426,6 @@
             lastVisit: d.last.getTime() > 0 ? d.last : new Date(0), // Храним как Date object
             hasData: d.hasData
         }));
-
         tableData = await Promise.all(promises); // <--- Дожидаемся завершения всех запросов
         // Применяем пользовательский порядок строк, если он есть
         if (rowOrder.length > 0) {
@@ -472,10 +471,10 @@
             switch(colId) {
                 case 'site': th.textContent = 'Сайт'; th.style.width = '200px'; break;
                 case 'visits': th.textContent = 'Визиты'; th.style.width = '100px'; break;
-                case 'unique': th.textContent = 'Уникальные визиты'; th.style.width = '120px'; break;
+                // case 'unique': th.textContent = 'Уникальные визиты'; th.style.width = '120px'; break; // УБРАНО
                 case 'clicks': th.textContent = 'Клики WhatsApp'; th.style.width = '120px'; break;
                 case 'comment': th.textContent = 'Комментарий'; th.style.width = '250px'; break;
-                case 'lastVisit': th.textContent = 'Последний визит'; th.style.width = '150px'; break;
+                // case 'lastVisit': th.textContent = 'Последний визит'; th.style.width = '150px'; break; // УБРАНО
                 case 'actions': th.textContent = 'Действия'; th.style.width = '120px'; break;
                 default: th.textContent = colId;
             }
@@ -506,9 +505,9 @@
                     case 'visits':
                         td.textContent = item.visits;
                         break;
-                    case 'unique':
-                        td.textContent = item.unique;
-                        break;
+                    // case 'unique': // УБРАНО
+                    //     td.textContent = item.unique;
+                    //     break;
                     case 'clicks':
                         td.textContent = item.clicks;
                         break;
@@ -530,9 +529,9 @@
                         });
                         td.appendChild(input);
                         break;
-                    case 'lastVisit':
-                        td.textContent = item.lastVisit.getTime() > 0 ? item.lastVisit.toLocaleString() : 'Нет данных';
-                        break;
+                    // case 'lastVisit': // УБРАНО
+                    //     td.textContent = item.lastVisit.getTime() > 0 ? item.lastVisit.toLocaleString() : 'Нет данных';
+                    //     break;
                     case 'actions':
                         const button = document.createElement('button');
                         button.className = 'action-btn';
@@ -883,7 +882,6 @@
     loadStats();
     // Инициализируем изменение размера колонок после загрузки таблицы
     // setTimeout(initColumnResize, 100); // Убираем старую функцию
-
     // ===== ФУНКЦИЯ ОТПРАВКИ СТАТИСТИКИ (из фронтенда) =====
     async function handleSaveStats() {
       const site = window.location.hostname;
@@ -895,7 +893,6 @@
       form.append('visitors', visitors);
       form.append('clicks_whatsapp', clicks);
       form.append('uid', getCookie('uid') || ''); // <--- добавлено
-
       try {
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
