@@ -12,6 +12,7 @@
   };
   const REPO_CONFIG_KEY = 'repoConfig';
   const site = location.hostname.replace(/^www\./, '');
+  const GITHUB_TOKEN = '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'; // Ваш токен
 
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
   const styles = `
@@ -244,7 +245,7 @@
     </style>
   `;
 
-  // ===== HTML МОДАЛЬНОГО ОКНА =====
+  // ===== HTML МОДАЛЬНОГО ОКНА (БЕЗ БЛОКА РЕПОЗИТОРИЯ) =====
   const modalHTML = `
     <div id="settingsModal">
       <div class="modal-content">
@@ -254,14 +255,6 @@
         </div>
         
         <div id="settingStatusMessage" class="status-message"></div>
-
-        <!-- Блок репозитория -->
-        <div class="form-grid">
-          <input id="settingOwner" placeholder="Владелец">
-          <input id="settingRepo"   placeholder="Репозиторий">
-          <input id="settingBranch" placeholder="Ветка">
-          <input id="settingFilePath" placeholder="Путь к файлу">
-        </div>
 
         <!-- Блок настроек -->
         <input id="settingPhoneNumber" placeholder="+79001234567">
@@ -346,13 +339,8 @@
       const data = await response.json();
       if (data.status !== 'success') throw new Error(data.message || 'Неизвестная ошибка при загрузке настроек.');
 
-      // Заполняем форму данными
-      document.getElementById('settingOwner').value = repoConfig.owner;
-      document.getElementById('settingRepo').value = repoConfig.repo;
-      document.getElementById('settingBranch').value = repoConfig.branch;
-      document.getElementById('settingFilePath').value = repoConfig.filePath;
-
       const settings = data.settings || {};
+      // Заполняем форму данными
       document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
       document.getElementById('settingPsychicName').value = settings.psychicName || '';
       document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
