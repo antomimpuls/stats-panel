@@ -680,8 +680,7 @@
         loadStats(); // Перезагрузка данных после сброса
       } catch (err) {
         console.error(err);
-        // Не показываем alert, не выводим "Failed to fetch"
-        showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning');
+        // УБРАНО: showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
@@ -737,7 +736,7 @@
         loadStats(); // Перезагрузка данных после сброса
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики:', error);
-        showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning');
+        // УБРАНО: showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
