@@ -229,12 +229,25 @@
       headers: { Authorization: `token ${GITHUB_TOKEN}` }
     });
     const data = await res.json();
-    return { sha: data.sha, content: atob(data.content.replace(/\s/g, '')) };
+    // Правильное декодирование Base64
+    const binaryString = atob(data.content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const content = new TextDecoder().decode(bytes);
+    return { sha: data.sha, content };
   }
 
   async function saveFile(newContent, sha) {
     // Правильное кодирование в Base64
-    const base64Content = btoa(unescape(encodeURIComponent(newContent)));
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(newContent);
+    let binaryString = '';
+    for (let i = 0; i < encoded.length; i++) {
+      binaryString += String.fromCharCode(encoded[i]);
+    }
+    const base64Content = btoa(binaryString);
 
     const payload = {
       message: 'Обновлено через панель управления',
@@ -260,14 +273,35 @@
   }
 
   function extractSettings(source) {
-    const m = source.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
-    if (!m) throw new Error('Не удалось найти SITE_SETTINGS');
-    return { match: m[0], obj: Function('"use strict";return (' + m[1] + ')')() };
+    // Ищем объект SITE_SETTINGS
+    const match = source.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
+    if (!match) throw new Error('Не удалось найти SITE_SETTINGS');
+    
+    // Извлекаем содержимое объекта
+    const settingsContent = match[1];
+    
+    // Создаем объект безопасным способом
+    const settings = {};
+    
+    // Ищем отдельные свойства
+    const phoneMatch = settingsContent.match(/phoneNumber:\s*['"]([^'"]*)['"]/);
+    const metricMatch = settingsContent.match(/yandexMetrikaId:\s*['"]([^'"]*)['"]/);
+    
+    if (phoneMatch) settings.phoneNumber = phoneMatch[1];
+    if (metricMatch) settings.yandexMetrikaId = metricMatch[1];
+    
+    return { match: match[0], obj: settings };
   }
 
   function replaceSettings(source, newObj) {
-    const json = JSON.stringify(newObj, null, 2).replace(/"/g, "'");
-    return source.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, `const SITE_SETTINGS = ${json};`);
+    // Создаем новую строку настроек
+    const newSettings = `const SITE_SETTINGS = {
+  phoneNumber: '${newObj.phoneNumber || ''}',
+  yandexMetrikaId: '${newObj.yandexMetrikaId || ''}'
+};`;
+    
+    // Заменяем старые настройки новыми
+    return source.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, newSettings);
   }
 
   // ===== ОСНОВНЫЕ ФУНКЦИИ =====
