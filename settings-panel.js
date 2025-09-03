@@ -14,7 +14,7 @@
 
   console.log('Settings panel initialized');
 
-  // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
+  // ===== СТИЛИ =====
   const styles = `
     <style>
       :root {
@@ -25,159 +25,25 @@
         --success: #28a745;
         --danger: #ff4757;
       }
-
-      /* Модальное окно настроек */
-      #settingsModal {
-        display: none;
-        position: fixed;
-        z-index: 10000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.7);
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-
-      .modal-content {
-        background: var(--card);
-        color: var(--text);
-        border-radius: 10px;
-        max-width: 500px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        padding: 25px;
-        box-sizing: border-box;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-      }
-
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--accent);
-      }
-
-      .modal-header h2 {
-        margin: 0;
-        font-size: 1.5em;
-      }
-
-      .close {
-        background: none;
-        border: none;
-        font-size: 1.8em;
-        cursor: pointer;
-        color: var(--text);
-        opacity: 0.7;
-        transition: opacity 0.25s;
-        padding: 0;
-        width: 30px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .close:hover {
-        opacity: 1;
-      }
-
-      .input-group {
-        margin-bottom: 1rem;
-      }
-
-      .input-group label {
-        display: block;
-        margin-bottom: .5rem;
-        font-size: .9rem;
-        color: #aaa;
-      }
-
-      .input-group input {
-        width: 100%;
-        padding: 10px;
-        background: var(--bg);
-        border: 1px solid #333;
-        border-radius: 6px;
-        color: var(--text);
-        font-size: 14px;
-        box-sizing: border-box;
-      }
-      
-      .input-group input:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
-
-      .modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 15px;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #333;
-      }
-
-      .btn {
-        border: none;
-        border-radius: 6px;
-        padding: 10px 20px;
-        font-size: 14px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: .25s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .btn.save {
-        background: var(--accent);
-        color: var(--bg);
-      }
-
-      .btn.cancel {
-        background: #6c757d;
-        color: var(--text);
-      }
-
-      .btn:hover {
-        opacity: 0.8;
-      }
-
-      .status-message {
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        text-align: center;
-        display: none;
-      }
-
-      .status-success {
-        background-color: rgba(40, 167, 69, 0.2);
-        color: var(--success);
-        border: 1px solid var(--success);
-      }
-
-      .status-error {
-        background-color: rgba(220, 53, 69, 0.2);
-        color: var(--danger);
-        border: 1px solid var(--danger);
-      }
+      #settingsModal{display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.7);justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
+      .modal-content{background:var(--card);color:var(--text);border-radius:10px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;padding:25px;display:flex;flex-direction:column;gap:15px}
+      .modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--accent);padding-bottom:10px}
+      .close{background:0 0;border:0;font-size:1.8em;cursor:pointer;color:var(--text);opacity:.7}
+      .close:hover{opacity:1}
+      .input-group{margin-bottom:1rem}
+      .input-group label{display:block;margin-bottom:.5rem;font-size:.9rem;color:#aaa}
+      .input-group input{width:100%;padding:10px;background:var(--bg);border:1px solid #333;border-radius:6px;color:var(--text)}
+      .modal-footer{display:flex;justify-content:flex-end;gap:15px;margin-top:20px;border-top:1px solid #333;padding-top:20px}
+      .btn{border:0;border-radius:6px;padding:10px 20px;font-weight:700;cursor:pointer}
+      .btn.save{background:var(--accent);color:var(--bg)}
+      .btn.cancel{background:#6c757d;color:var(--text)}
+      .status-message{padding:10px;border-radius:5px;text-align:center;display:none}
+      .status-success{background:rgba(40,167,69,.2);color:var(--success);border:1px solid var(--success)}
+      .status-error{background:rgba(220,53,69,.2);color:var(--danger);border:1px solid var(--danger)}
     </style>
   `;
 
-  // ===== HTML МОДАЛЬНОГО ОКНА =====
+  // ===== HTML =====
   const modalHTML = `
     <div id="settingsModal">
       <div class="modal-content">
@@ -185,20 +51,15 @@
           <h2>Настройки сайта <span id="modalSiteName"></span></h2>
           <button class="close">&times;</button>
         </div>
-        
         <div id="settingStatusMessage" class="status-message"></div>
-
-        <!-- Только нужные настройки: телефон и метрика -->
         <div class="input-group">
           <label>Номер телефона:</label>
           <input id="settingPhoneNumber" type="text" placeholder="+7 XXX XXX XX XX" />
         </div>
-        
         <div class="input-group">
           <label>ID Яндекс.Метрики:</label>
           <input id="settingYandexMetrikaId" type="text" placeholder="12345678" />
         </div>
-
         <div class="modal-footer">
           <button class="btn cancel" id="cancelSettingsBtn">Отмена</button>
           <button class="btn save" id="saveSettingsBtn">Сохранить</button>
@@ -207,18 +68,14 @@
     </div>
   `;
 
-  // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-  function showStatus(message, type = 'success') {
-    const statusMsg = document.getElementById('settingStatusMessage');
-    if (!statusMsg) return;
-    statusMsg.textContent = message;
-    statusMsg.className = `status-message status-${type}`;
-    statusMsg.style.display = 'block';
-    setTimeout(() => {
-      if (statusMsg.textContent === message) {
-        statusMsg.style.display = 'none';
-      }
-    }, 5000);
+  // ===== Утилиты =====
+  function showStatus(msg, type = 'success') {
+    const el = document.getElementById('settingStatusMessage');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `status-message status-${type}`;
+    el.style.display = 'block';
+    setTimeout(() => { if (el.textContent === msg) el.style.display = 'none'; }, 5000);
   }
 
   function populateForm(settings) {
@@ -227,7 +84,7 @@
     document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
   }
 
-  // ===== ЗАПРОС ТОКЕНА (один раз за сессию) =====
+  // ===== Запрос токена =====
   async function requestTokenOnce() {
     if (GITHUB_TOKEN) return true;
     const raw = prompt('Введите GitHub Personal Access Token (только один раз за сессию):');
@@ -237,7 +94,7 @@
     return true;
   }
 
-  // ===== ФУНКЦИИ РАБОТЫ С GITHUB =====
+  // ===== GitHub API =====
   async function fetchFile() {
     if (!await requestTokenOnce()) throw new Error('Токен не предоставлен');
     const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
@@ -252,9 +109,7 @@
       throw new Error(`GitHub API error: ${res.status} - ${txt}`);
     }
     const data = await res.json();
-    const content = new TextDecoder().decode(
-      Uint8Array.from(atob(data.content), c => c.charCodeAt(0))
-    );
+    const content = new TextDecoder().decode(Uint8Array.from(atob(data.content), c => c.charCodeAt(0)));
     return { sha: data.sha, content };
   }
 
@@ -285,23 +140,24 @@
     return true;
   }
 
+  // ===== Парсер/сборщик настроек =====
   function extractSettings(source) {
     const m = source.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
     if (!m) throw new Error('SITE_SETTINGS не найден');
     const s = {};
-    const ph = m[1].match(/phoneNumber:\s*['"`]([^'"`]*)['"`]/);
-    const ym = m[1].match(/yandexMetrikaId:\s*['"`]([^'"`]*)['"`]/);
+    const ph = m[1].match(/['"]?phoneNumber['"]?\s*:\s*['"`]([^'"`]*)['"`]/);
+    const ym = m[1].match(/['"]?yandexMetrikaId['"]?\s*:\s*['"`]([^'"`]*)['"`]/);
     if (ph) s.phoneNumber = ph[1];
     if (ym) s.yandexMetrikaId = ym[1];
     return { match: m[0], obj: s };
   }
 
   function replaceSettings(src, obj) {
-    const newSet = `const SITE_SETTINGS = {\n  phoneNumber: '${obj.phoneNumber || ''}',\n  yandexMetrikaId: '${obj.yandexMetrikaId || ''}'\n};`;
+    const newSet = `const SITE_SETTINGS = {\n  'phoneNumber': '${obj.phoneNumber || ''}',\n  'yandexMetrikaId': '${obj.yandexMetrikaId || ''}'\n};`;
     return src.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, newSet);
   }
 
-  // ===== ОСНОВНЫЕ ФУНКЦИИ =====
+  // ===== Основные операции =====
   async function loadSettings(targetSite) {
     try {
       showStatus('Загрузка...', 'success');
@@ -310,7 +166,7 @@
       populateForm(obj);
       showStatus('Данные загружены ✅', 'success');
     } catch (e) {
-      console.error('Ошибка загрузки:', e);
+      console.error(e);
       showStatus(`Ошибка загрузки: ${e.message}`, 'error');
     }
   }
@@ -327,14 +183,13 @@
       showStatus('Сохранено ✅', 'success');
       setTimeout(closeSettingsModal, 1500);
     } catch (e) {
-      console.error('Ошибка сохранения:', e);
+      console.error(e);
       showStatus(`Ошибка сохранения: ${e.message}`, 'error');
     }
   }
 
-  // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
+  // ===== Управление модальным окном =====
   function openSettingsModal(targetSite) {
-    console.log('Opening modal for:', targetSite);
     document.getElementById('modalSiteName').textContent = targetSite;
     document.getElementById('settingsModal').style.display = 'flex';
     const statusMsg = document.getElementById('settingStatusMessage');
@@ -343,11 +198,10 @@
   }
 
   function closeSettingsModal() {
-    console.log('Closing modal');
     document.getElementById('settingsModal').style.display = 'none';
   }
 
-  // ===== ИНИЦИАЛИЗАЦИЯ =====
+  // ===== Инициализация =====
   function init() {
     // стили и HTML
     if (!document.getElementById('settings-modal-styles')) {
