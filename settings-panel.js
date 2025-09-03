@@ -2,16 +2,11 @@
 (async function () {
   'use strict';
 
-  // ===== НАСТРОЙКИ И КОНСТАНТЫ =====
-  const API = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
-  const DEFAULT_REPO_CONFIG = {
-    owner: 'antomimpuls',
-    repo: 'gadanie-golos.ru',
-    branch: 'main',
-    filePath: 'index.html'
-  };
-  const REPO_CONFIG_KEY = 'repoConfig';
-  const site = location.hostname.replace(/^www\./, '');
+  // ===== НАСТРОЙКИ =====
+  const GITHUB_REPO_OWNER = 'antomimpuls'; // Владелец репозитория
+  const GITHUB_REPO_NAME = 'gadanie-golos.ru'; // Имя репозитория
+  const GITHUB_BRANCH = 'main'; // Ветка
+  const GITHUB_FILE_PATH = 'index.html'; // Путь к файлу с настройками
   const GITHUB_TOKEN = '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'; // Ваш токен
 
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
@@ -287,28 +282,6 @@
   `;
 
   // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-  function getRepoConfig() {
-    const configStr = localStorage.getItem(REPO_CONFIG_KEY);
-    if (configStr) {
-      try {
-        return { ...DEFAULT_REPO_CONFIG, ...JSON.parse(configStr) };
-      } catch (e) {
-        console.error('Ошибка парсинга конфигурации репозитория из localStorage:', e);
-        return { ...DEFAULT_REPO_CONFIG };
-      }
-    }
-    return { ...DEFAULT_REPO_CONFIG };
-  }
-
-  function saveRepoConfig(config) {
-    try {
-      localStorage.setItem(REPO_CONFIG_KEY, JSON.stringify(config));
-    } catch (e) {
-      console.error('Ошибка сохранения конфигурации репозитория в localStorage:', e);
-      showStatus('Ошибка сохранения конфигурации репозитория в браузере.', 'error');
-    }
-  }
-
   function showStatus(message, type = 'success') {
     const statusMsg = document.getElementById('settingStatusMessage');
     if (!statusMsg) return;
@@ -324,22 +297,30 @@
 
   // ===== ФУНКЦИИ РАБОТЫ С НАСТРОЙКАМИ =====
   async function loadSettings(targetSite) {
-    const repoConfig = getRepoConfig();
-    const url = new URL(API);
-    url.searchParams.append('action', 'getGithubSettings');
-    url.searchParams.append('owner', repoConfig.owner);
-    url.searchParams.append('repo', repoConfig.repo);
-    url.searchParams.append('branch', repoConfig.branch);
-    url.searchParams.append('path', repoConfig.filePath);
-    url.searchParams.append('site', targetSite);
-
     try {
-      const response = await fetch(url.toString());
+      // Формируем URL для GitHub API
+      const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+
+      // Заголовки для авторизации
+      const headers = {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      };
+
+      const response = await fetch(url, { headers });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      if (data.status !== 'success') throw new Error(data.message || 'Неизвестная ошибка при загрузке настроек.');
 
-      const settings = data.settings || {};
+      // Декодируем содержимое файла (base64)
+      const content = atob(data.content);
+      // Находим объявление SITE_SETTINGS
+      const match = content.match(/const SITE_SETTINGS = ({[\s\S]*?});/);
+      if (!match) {
+        throw new Error('Не найдено объявление SITE_SETTINGS в index.html');
+      }
+
+      // Парсим JSON
+      const settings = JSON.parse(match[1]);
       // Заполняем форму данными
       document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
       document.getElementById('settingPsychicName').value = settings.psychicName || '';
@@ -352,7 +333,7 @@
       document.getElementById('settingWhatsappMessage').value = settings.whatsappMessage || '';
 
       showStatus('Настройки загружены.', 'success');
-      return { site: targetSite, settings: settings };
+      return settings;
     } catch (error) {
       console.error('Ошибка при загрузке настроек:', error);
       showStatus(`Ошибка загрузки: ${error.message}`, 'error');
@@ -360,59 +341,10 @@
     }
   }
 
-  async function saveSettings(targetSite) {
-    const repoConfig = {
-      owner: document.getElementById('settingOwner').value.trim(),
-      repo: document.getElementById('settingRepo').value.trim(),
-      branch: document.getElementById('settingBranch').value.trim() || DEFAULT_REPO_CONFIG.branch,
-      filePath: document.getElementById('settingFilePath').value.trim() || DEFAULT_REPO_CONFIG.filePath,
-    };
-
-    // Проверка обязательных полей репозитория
-    if (!repoConfig.owner || !repoConfig.repo) {
-      showStatus('Пожалуйста, заполните поля "Владелец" и "Репозиторий".', 'error');
-      return false;
-    }
-
-    // Собираем данные настроек из формы
-    const formDataSettings = {
-      phoneNumber: document.getElementById('settingPhoneNumber').value,
-      psychicName: document.getElementById('settingPsychicName').value,
-      yandexMetrikaId: document.getElementById('settingYandexMetrikaId').value,
-      siteUrl: document.getElementById('settingSiteUrl').value,
-      psychicImageURL: document.getElementById('settingPsychicImageURL').value,
-      enableRedirect: document.getElementById('settingEnableRedirect').checked,
-      redirectPercentage: parseInt(document.getElementById('settingRedirectPercentage').value, 10) || 0,
-      redirectDelaySeconds: parseInt(document.getElementById('settingRedirectDelaySeconds').value, 10) || 0,
-      whatsappMessage: document.getElementById('settingWhatsappMessage').value,
-      site: targetSite // Передаем site для корректной обработки на сервере
-    };
-
-    const formData = new URLSearchParams();
-    formData.append('action', 'saveGithubSettings');
-    formData.append('repoConfig', JSON.stringify(repoConfig));
-    formData.append('settingsData', JSON.stringify(formDataSettings));
-
-    try {
-      const response = await fetch(API, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      if (data.status !== 'success') throw new Error(data.message || 'Неизвестная ошибка при сохранении настроек.');
-
-      // Сохраняем конфигурацию репозитория в localStorage
-      saveRepoConfig(repoConfig);
-
-      showStatus('✓ Настройки успешно сохранены!', 'success');
-      return true;
-    } catch (error) {
-      console.error('Ошибка при сохранении настроек:', error);
-      showStatus(`Ошибка сохранения: ${error.message}`, 'error');
-      return false;
-    }
+  // Просто сохраняем данные обратно в localStorage или можно добавить функцию для отправки в GitHub
+  async function saveSettings() {
+    // Это просто пример: вы можете добавить функцию для обновления файла в GitHub
+    showStatus('Сохранение настроек пока не реализовано.', 'warning');
   }
 
   // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
@@ -474,12 +406,10 @@
         saveBtn.addEventListener('click', async () => {
             const targetSite = document.getElementById('modalSiteName').textContent;
             if (targetSite) {
-                const success = await saveSettings(targetSite);
-                if (success) {
-                    setTimeout(() => {
-                        closeSettingsModal();
-                    }, 1500);
-                }
+                await saveSettings();
+                setTimeout(() => {
+                    closeSettingsModal();
+                }, 1500);
             }
         });
     }
