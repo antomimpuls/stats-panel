@@ -244,11 +244,9 @@
     const DATA_RANGE = 'data!A:F';
     const COMMENTS_RANGE = 'comments!A:B';
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
-
     // ===== КЛЮЧИ ДЛЯ LOCAL STORAGE =====
     const COLUMN_ORDER_KEY = 'statsPanelColumnOrder';
     const ROW_ORDER_KEY = 'statsPanelRowOrder';
-
     // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
     let rawData = [];
     let comments = {};
@@ -260,7 +258,7 @@
     let columnOrder = ['site', 'visits', 'clicks', 'comment', 'actions'];
     let originalColumnOrder = [...columnOrder];
     let rowOrder = [];
-
+    let debounceTimers = {};
     // ===== ГЕНЕРАЦИЯ И СОХРАНЕНИЕ UID =====
     function getCookie(n) {
       const v = document.cookie.match('(^|;) ?' + n + '=([^;]*)(;|$)');
@@ -274,14 +272,12 @@
     if (!getCookie('uid')) {
       setCookie('uid', crypto.randomUUID(), 365);
     }
-
     // ===== ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ =====
     async function loadStats() {
       try {
         document.body.classList.add('loading');
         showMessage('Загрузка данных...', 'warning');
         loadSavedOrder();
-
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
         const data = await dataRes.json();
@@ -290,7 +286,6 @@
           return;
         }
         rawData = data.values.slice(1);
-
         const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
         const commentsRes = await fetch(commentsUrl);
         const commentsData = await commentsRes.json();
@@ -312,21 +307,24 @@
         document.body.classList.remove('loading');
       }
     }
-
     // ===== ФУНКЦИИ СОХРАНЕНИЯ/ЗАГРУЗКИ ПОРЯДКА =====
     function saveColumnOrder() {
-        try {
-            localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(columnOrder));
-        } catch (e) {
-            console.error("Не удалось сохранить порядок столбцов в localStorage", e);
-        }
+        debounce('saveColumnOrder', () => {
+            try {
+                localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(columnOrder));
+            } catch (e) {
+                console.error("Не удалось сохранить порядок столбцов в localStorage", e);
+            }
+        }, 500);
     }
     function saveRowOrder() {
-        try {
-            localStorage.setItem(ROW_ORDER_KEY, JSON.stringify(rowOrder));
-        } catch (e) {
-            console.error("Не удалось сохранить порядок строк в localStorage", e);
-        }
+        debounce('saveRowOrder', () => {
+            try {
+                localStorage.setItem(ROW_ORDER_KEY, JSON.stringify(rowOrder));
+            } catch (e) {
+                console.error("Не удалось сохранить порядок строк в localStorage", e);
+            }
+        }, 500);
     }
     function loadSavedOrder() {
         try {
@@ -349,7 +347,7 @@
         }
     }
     function resetOrder() {
-        if(!confirm('Вы уверены, что хотите сбросить пользовательский порядок строк и столбцов?')) return;
+        // Убираем confirm
         columnOrder = [...originalColumnOrder];
         rowOrder = [];
         try {
@@ -361,31 +359,27 @@
         renderTable();
         showMessage('Пользовательский порядок сброшен!');
     }
-
     // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
     async function processTableData(selectedDate = new Date().toISOString().split('T')[0]) {
         const stats = {};
         const allSites = [...new Set(rawData.map(row => row[0]))];
-
         // Инициализация
         allSites.forEach(site => {
             if (!stats[site]) {
                 stats[site] = { visits: 0, clicks: 0, hasData: false };
             }
         });
-
         // Обработка данных: [site, visits, clicks, timestamp, dateOnly]
-        rawData.forEach(([site, v, c, , dateOnly]) => {
+        for (let i = 0; i < rawData.length; i++) {
+            const [site, v, c, , dateOnly] = rawData[i];
             const rowDate = dateOnly;
-            if (selectedDate && rowDate !== selectedDate) return;
-
+            if (selectedDate && rowDate !== selectedDate) continue;
             if (stats[site]) {
                 stats[site].visits += parseInt(v) || 0;
                 stats[site].clicks += parseInt(c) || 0;
                 stats[site].hasData = true;
             }
-        });
-
+        }
         // Формирование таблицы
         tableData = Object.entries(stats).map(([site, d]) => ({
             site: site,
@@ -394,7 +388,6 @@
             comment: comments[site] || '',
             hasData: d.hasData
         }));
-
         // Применение порядка строк
         if (rowOrder.length > 0) {
             tableData.sort((a, b) => {
@@ -409,18 +402,17 @@
             tableData.sort((a, b) => b.visits - a.visits);
         }
     }
-
     // ===== РЕНДЕР ТАБЛИЦЫ =====
     function renderTable() {
       renderTableHeader();
       renderTableBody();
       initDragAndDrop();
     }
-
     function renderTableHeader() {
         const theadRow = document.getElementById('tableHeaderRow');
         theadRow.innerHTML = '';
-        columnOrder.forEach((colId) => {
+        for (let i = 0; i < columnOrder.length; i++) {
+            const colId = columnOrder[i];
             const th = document.createElement('th');
             th.className = 'column-header draggable';
             th.dataset.columnId = colId;
@@ -434,13 +426,13 @@
                 default: th.textContent = colId;
             }
             theadRow.appendChild(th);
-        });
+        }
     }
-
     function renderTableBody() {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-        tableData.forEach((item) => {
+        for (let i = 0; i < tableData.length; i++) {
+            const item = tableData[i];
             const tr = document.createElement('tr');
             tr.className = 'draggable-row';
             tr.draggable = true;
@@ -448,7 +440,8 @@
             if (item.visits === 0 && item.clicks === 0) {
                 tr.classList.add('zero-stats');
             }
-            columnOrder.forEach(colId => {
+            for (let j = 0; j < columnOrder.length; j++) {
+                const colId = columnOrder[j];
                 const td = document.createElement('td');
                 switch(colId) {
                     case 'site':
@@ -468,6 +461,7 @@
                         input.value = item.comment;
                         input.placeholder = "Комментарий";
                         input.dataset.site = item.site;
+                        // Убираем confirm
                         input.addEventListener('change', (e) => {
                             saveComment(item.site, e.target.value);
                             const dataItem = tableData.find(d => d.site === item.site);
@@ -481,21 +475,22 @@
                         const button = document.createElement('button');
                         button.className = 'action-btn';
                         button.innerHTML = '<i class="fas fa-eraser"></i> Сбросить';
+                        // Убираем confirm
                         button.onclick = () => resetSiteStats(item.site);
                         td.appendChild(button);
                         break;
                 }
                 tr.appendChild(td);
-            });
+            }
             tbody.appendChild(tr);
-        });
+        }
     }
-
     // ===== ПЕРЕТАСКИВАНИЕ СТРОК =====
     function initDragAndDrop() {
         const rows = document.querySelectorAll('.draggable-row');
         let draggedRow = null;
-        rows.forEach(row => {
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
             row.addEventListener('dragstart', (e) => {
                 draggedRow = row;
                 row.classList.add('dragging');
@@ -503,9 +498,10 @@
             });
             row.addEventListener('dragend', (e) => {
                 row.classList.remove('dragging');
-                document.querySelectorAll('.drag-over, .drag-over-after').forEach(el => {
-                    el.classList.remove('drag-over', 'drag-over-after');
-                });
+                const els = document.querySelectorAll('.drag-over, .drag-over-after');
+                for (let j = 0; j < els.length; j++) {
+                    els[j].classList.remove('drag-over', 'drag-over-after');
+                }
                 draggedRow = null;
             });
             row.addEventListener('dragover', (e) => {
@@ -514,9 +510,10 @@
             });
             row.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                document.querySelectorAll('.drag-over, .drag-over-after').forEach(el => {
-                    el.classList.remove('drag-over', 'drag-over-after');
-                });
+                const els = document.querySelectorAll('.drag-over, .drag-over-after');
+                for (let j = 0; j < els.length; j++) {
+                    els[j].classList.remove('drag-over', 'drag-over-after');
+                }
                 const bounding = row.getBoundingClientRect();
                 const offset = bounding.y + (bounding.height / 2);
                 if (e.clientY - offset > 0) {
@@ -547,12 +544,12 @@
                     saveRowOrder();
                 }
             });
-        });
-
+        }
         // ===== ПЕРЕТАСКИВАНИЕ ЗАГОЛОВКОВ СТОЛБЦОВ =====
         const headers = document.querySelectorAll('.column-header');
         let draggedHeader = null;
-        headers.forEach((header) => {
+        for (let i = 0; i < headers.length; i++) {
+            const header = headers[i];
             if (!header.style.width) {
                 header.style.width = header.offsetWidth + 'px';
             }
@@ -563,9 +560,10 @@
             });
             header.addEventListener('dragend', (e) => {
                 header.classList.remove('dragging');
-                document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right').forEach(el => {
-                    el.classList.remove('drag-over-left', 'drag-over-right');
-                });
+                const els = document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right');
+                for (let j = 0; j < els.length; j++) {
+                    els[j].classList.remove('drag-over-left', 'drag-over-right');
+                }
                 draggedHeader = null;
             });
             header.addEventListener('dragover', (e) => {
@@ -575,9 +573,10 @@
             header.addEventListener('dragenter', (e) => {
                 e.preventDefault();
                 if (draggedHeader === header) return;
-                document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right').forEach(el => {
-                    el.classList.remove('drag-over-left', 'drag-over-right');
-                });
+                const els = document.querySelectorAll('.column-header.drag-over-left, .column-header.drag-over-right');
+                for (let j = 0; j < els.length; j++) {
+                    els[j].classList.remove('drag-over-left', 'drag-over-right');
+                }
                 const bounding = header.getBoundingClientRect();
                 const midpoint = bounding.x + (bounding.width / 2);
                 if (e.clientX < midpoint) {
@@ -621,19 +620,18 @@
                     e.preventDefault();
                 }
             });
-        });
+        }
     }
-
     function updateRowOrderFromDOM() {
         const tbody = document.getElementById('tableBody');
         const newOrder = [];
-        tbody.querySelectorAll('.draggable-row').forEach(row => {
-            const site = row.dataset.site;
+        const rows = tbody.querySelectorAll('.draggable-row');
+        for (let i = 0; i < rows.length; i++) {
+            const site = rows[i].dataset.site;
             if (site) newOrder.push(site);
-        });
+        }
         rowOrder = newOrder;
     }
-
     // ===== ИЗМЕНЕНИЕ РАЗМЕРА КОЛОНОК =====
     document.addEventListener('mousemove', (e) => {
         if (isResizing && currentColumn) {
@@ -642,10 +640,10 @@
                 currentColumn.style.width = newWidth + 'px';
                 const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
                 const rows = document.querySelectorAll('#sitesTable tr');
-                rows.forEach(row => {
-                    const cell = row.children[columnIndex];
+                for (let i = 0; i < rows.length; i++) {
+                    const cell = rows[i].children[columnIndex];
                     if (cell) cell.style.width = newWidth + 'px';
-                });
+                }
             }
         }
     });
@@ -657,10 +655,9 @@
             document.body.classList.remove('resizing');
         }
     });
-
     // ===== СБРОС СТАТИСТИКИ ПО САЙТУ =====
     async function resetSiteStats(site) {
-      if (!confirm(`Обнулить статистику для сайта «${site}» в таблице?`)) return;
+      // Убираем confirm
       const form = new URLSearchParams();
       form.append('action', 'resetSiteStats');
       form.append('site', site);
@@ -674,15 +671,14 @@
         const data = JSON.parse(txt);
         if (data.status !== 'success') throw new Error(data.message);
         showMessage(`Статистика для ${site} обнулена (${data.message})`);
-        loadStats();
+        loadStats(); // Перезагрузка данных после сброса
       } catch (err) {
-        alert('Ошибка: ' + err.message);
+        showMessage('Ошибка: ' + err.message, 'warning');
         console.error(err);
       } finally {
         document.body.classList.remove('loading');
       }
     }
-
     // ===== СОХРАНЕНИЕ КОММЕНТАРИЯ =====
     async function saveComment(site, comment) {
       const form = new URLSearchParams();
@@ -699,14 +695,13 @@
         if (data.status !== 'success') throw new Error(data.message);
         showMessage('Комментарий сохранён!');
       } catch (err) {
-        alert('Ошибка сохранения комментария: ' + err.message);
+        showMessage('Ошибка сохранения комментария: ' + err.message, 'warning');
         console.error(err);
       }
     }
-
     // ===== СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
     async function resetAllStatsInSheets() {
-      if(!confirm('Вы уверены, что хотите сбросить ВСЮ статистику? Данные будут удалены из таблицы Google Sheets.')) return;
+      // Убираем confirm
       try {
         document.body.classList.add('loading');
         showMessage('Сбрасываем всю статистику в таблице...', 'warning');
@@ -720,15 +715,14 @@
         const data = JSON.parse(txt);
         if (data.status !== 'success') throw new Error(data.message);
         showMessage('Вся статистика в таблице сброшена!');
-        loadStats();
+        loadStats(); // Перезагрузка данных после сброса
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики в таблице:', error);
-        alert('Ошибка при сбросе всей статистики в таблице: ' + error.message);
+        showMessage('Ошибка при сбросе всей статистики в таблице: ' + error.message, 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
     }
-
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
     function showMessage(message, type = 'success') {
       hideMessage();
@@ -752,7 +746,13 @@
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
     }
-
+    // Debounce utility
+    function debounce(id, func, delay) {
+        if (debounceTimers[id]) {
+            clearTimeout(debounceTimers[id]);
+        }
+        debounceTimers[id] = setTimeout(func, delay);
+    }
     // ===== УПРАВЛЕНИЕ ДАТОЙ =====
     const datePicker = document.getElementById('datePicker');
     datePicker.valueAsDate = new Date();
@@ -760,24 +760,24 @@
         await processTableData(datePicker.value);
         renderTable();
     });
-    document.querySelectorAll('.quickDate').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const offset = parseInt(btn.dataset.offset);
-        const d = new Date();
-        d.setDate(d.getDate()+offset);
-        datePicker.valueAsDate = d;
-        await processTableData(d.toISOString().split('T')[0]);
-        renderTable();
-      });
-    });
-
+    const quickDateBtns = document.querySelectorAll('.quickDate');
+    for (let i = 0; i < quickDateBtns.length; i++) {
+        const btn = quickDateBtns[i];
+        btn.addEventListener('click', async ()=>{
+            const offset = parseInt(btn.dataset.offset);
+            const d = new Date();
+            d.setDate(d.getDate()+offset);
+            datePicker.valueAsDate = d;
+            await processTableData(d.toISOString().split('T')[0]);
+            renderTable();
+        });
+    }
     // ===== ОБРАБОТЧИКИ СОБЫТИЙ =====
     document.getElementById('refreshBtn').addEventListener('click', async () => {
       await loadStats();
     });
     document.getElementById('resetAllSheetsBtn').addEventListener('click', resetAllStatsInSheets);
     document.getElementById('resetOrderBtn').addEventListener('click', resetOrder);
-
     // ===== ИНИЦИАЛИЗАЦИЯ =====
     loadStats();
   </script>
