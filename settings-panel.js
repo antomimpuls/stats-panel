@@ -3,12 +3,13 @@
   'use strict';
 
   // ===== НАСТРОЙКИ И КОНСТАНТЫ =====
+  // Эти параметры можно оставить как есть, так как они зашиты в логику получения файла
   const GITHUB_REPO_OWNER = 'antomimpuls';
   const GITHUB_REPO_NAME = 'gadanie-golos.ru';
   const GITHUB_BRANCH = 'main';
   const GITHUB_FILE_PATH = 'index.html';
+  // Ваш токен для GitHub API
   const GITHUB_TOKEN = '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';
-  const site = location.hostname.replace(/^www\./, '');
 
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
   const styles = `
@@ -276,7 +277,8 @@
 
         <div class="modal-footer">
           <button class="btn cancel" id="cancelSettingsBtn">Отмена</button>
-          <button class="btn save" id="saveSettingsBtn">Сохранить</button>
+          <!-- Кнопка сохранения убрана, так как логика сохранения не реализована -->
+          <!-- <button class="btn save" id="saveSettingsBtn">Сохранить</button> -->
         </div>
       </div>
     </div>
@@ -298,71 +300,68 @@
 
   // ===== ФУНКЦИИ РАБОТЫ С НАСТРОЙКАМИ =====
   async function loadSettings(targetSite) {
+    console.log(`Попытка загрузки настроек для сайта: ${targetSite}`);
     try {
-      // Формируем URL для GitHub API
-      // Исправлено: Убран лишний пробел в URL
-      const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+      // Формируем URL для GitHub API для получения содержимого файла
+      // Используем прямую ссылку на содержимое файла
+      const url = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/${GITHUB_BRANCH}/${GITHUB_FILE_PATH}`;
 
-      // Заголовки для авторизации
-      const headers = {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json'
-      };
+      console.log(`Запрос к URL: ${url}`);
 
-      const response = await fetch(url, { headers });
+      // Заголовки для авторизации (если потребуется, хотя для raw.githubusercontent.com может и не нужно)
+      // const headers = {
+      //   'Authorization': `token ${GITHUB_TOKEN}`,
+      //   'Accept': 'application/vnd.github.v3.raw' // Запрашиваем сырой контент
+      // };
+      // const response = await fetch(url, { headers });
+
+      // Простой запрос без специальных заголовков для raw.githubusercontent.com
+      const response = await fetch(url);
 
       // Проверяем статус ответа
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, text: ${errorText}`);
+        console.error(`Ошибка HTTP: ${response.status}`, errorText);
+        throw new Error(`HTTP error! status: ${response.status}, text: ${errorText.substring(0, 200)}`);
       }
 
-      const data = await response.json();
+      // Получаем текст содержимого файла
+      const content = await response.text();
+      console.log('Получено содержимое файла index.html (первые 500 символов):', content.substring(0, 500));
 
-      // Декодируем содержимое файла (base64)
-      const content = atob(data.content);
-      console.log('Декодированное содержимое:', content); // Для отладки
-
-      // Находим объявление SITE_SETTINGS с более гибким регулярным выражением
-      // Исправлено: Улучшено регулярное выражение для поиска SITE_SETTINGS
-      const match = content.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
-      if (!match) {
-          // Альтернативная попытка, если формат немного другой
-          const altMatch = content.match(/SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
-          if (!altMatch) {
-              throw new Error('Не найдено объявление SITE_SETTINGS в index.html');
-          }
-          const settingsStr = altMatch[1];
-          // Парсим JSON
-          const settings = JSON.parse(settingsStr);
-          console.log('Извлечённые настройки (альтернативный метод):', settings); // Для отладки
-          populateForm(settings);
-          showStatus('Настройки загружены (альтернативный метод).', 'success');
-          return settings;
+      // Находим объявление SITE_SETTINGS с более надежным регулярным выражением
+      // Это выражение ищет SITE_SETTINGS и захватывает всё до ближайшей точки с запятой после закрывающей фигурной скобки
+      const match = content.match(/const\s+SITE_SETTINGS\s*=\s*({[^;]*});/s);
+      
+      if (!match || !match[1]) {
+          console.error('RegExp match для SITE_SETTINGS не удался. Полный текст для поиска:', content);
+          throw new Error('Не найдено корректное объявление SITE_SETTINGS в index.html. Проверьте формат в репозитории.');
       }
+
+      const settingsStr = match[1];
+      console.log('Найденная строка настроек:', settingsStr);
 
       // Парсим JSON
-      const settingsStr = match[1];
-      // Исправлено: Удаление комментариев и обработка возможных переносов строк/пробелов
-      const cleanedSettingsStr = settingsStr
-        .replace(/\/\*[\s\S]*?\*\//g, '') // Удалить /* комментарии */
-        .replace(/\/\/.*$/gm, '') // Удалить // комментарии
-        .trim();
-      const settings = JSON.parse(cleanedSettingsStr);
-      console.log('Извлечённые настройки:', settings); // Для отладки
+      let settings;
+      try {
+        settings = JSON.parse(settingsStr);
+        console.log('Успешно распарсенные настройки:', settings);
+      } catch (parseError) {
+         console.error('Ошибка парсинга JSON из SITE_SETTINGS:', parseError);
+         // Попробуем "почистить" строку вручную, если стандартный JSON.parse не сработал
+         // Удаляем возможные комментарии и лишние символы (это рискованно, но может помочь)
+         const cleanedSettingsStr = settingsStr
+           .replace(/\/\*[\s\S]*?\*\//g, '') // Удалить /* комментарии */
+           .replace(/\/\/.*$/gm, '') // Удалить // комментарии
+           .replace(/,\s*([}\]])/g, '$1') // Удалить запятые перед закрывающими скобками (иногда бывает)
+           .trim();
+         console.log('Очищенная строка настроек для повторной попытки:', cleanedSettingsStr);
+         settings = JSON.parse(cleanedSettingsStr);
+         console.log('Настройки после очистки и повторного парсинга:', settings);
+      }
 
-      populateForm(settings);
-      showStatus('Настройки загружены.', 'success');
-      return settings;
-    } catch (error) {
-      console.error('Ошибка при загрузке настроек:', error);
-      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
-      return null;
-    }
-  }
 
-  // Новая функция для заполнения формы
-  function populateForm(settings) {
+      // Заполняем форму данными
       document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
       document.getElementById('settingPsychicName').value = settings.psychicName || '';
       document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
@@ -372,16 +371,20 @@
       document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || '';
       document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || '';
       document.getElementById('settingWhatsappMessage').value = settings.whatsappMessage || '';
+
+      showStatus('Настройки успешно загружены.', 'success');
+      return settings;
+    } catch (error) {
+      console.error('Критическая ошибка в функции loadSettings:', error);
+      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
+      return null;
+    }
   }
 
-  // Просто сохраняем данные обратно в localStorage или можно добавить функцию для отправки в GitHub
-  async function saveSettings() {
-    // Это просто пример: вы можете добавить функцию для обновления файла в GitHub
-    showStatus('Сохранение настроек пока не реализовано.', 'warning');
-  }
 
   // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
   function openSettingsModal(targetSite) {
+    console.log(`Открытие модального окна для сайта: ${targetSite}`);
     document.getElementById('modalSiteName').textContent = targetSite;
     document.getElementById('settingsModal').style.display = 'flex';
     // Сбрасываем сообщение статуса
@@ -407,6 +410,7 @@
 
   // ===== ИНИЦИАЛИЗАЦИЯ =====
   function init() {
+    console.log('Инициализация settings-panel.js');
     // Проверяем, что скрипт выполняется в браузере
     if (typeof document === 'undefined' || typeof window === 'undefined') {
       console.warn('Скрипт settings-panel.js предназначен для выполнения в браузере.');
@@ -415,39 +419,52 @@
 
     // Добавляем стили и модальное окно в DOM
     if (!document.getElementById('settings-modal-styles')) {
+      console.log('Добавление стилей в DOM');
       const styleElement = document.createElement('div');
       styleElement.id = 'settings-modal-styles';
       styleElement.innerHTML = styles;
       document.head.appendChild(styleElement);
+    } else {
+       console.log('Стили уже существуют в DOM');
     }
 
     if (!document.getElementById('settingsModal')) {
+       console.log('Добавление модального окна в DOM');
       const modalElement = document.createElement('div');
       modalElement.innerHTML = modalHTML;
       document.body.appendChild(modalElement.firstElementChild);
+    } else {
+       console.log('Модальное окно уже существует в DOM');
     }
 
     // Назначаем обработчики событий
     const modal = document.getElementById('settingsModal');
     const span = modal?.querySelector('.close');
     const cancelBtn = document.getElementById('cancelSettingsBtn');
-    const saveBtn = document.getElementById('saveSettingsBtn');
+    // const saveBtn = document.getElementById('saveSettingsBtn'); // Убрано, так как сохранение не реализовано
 
-    if (span) span.addEventListener('click', closeSettingsModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeSettingsModal);
-    if (saveBtn) {
-        saveBtn.addEventListener('click', async () => {
-            const targetSite = document.getElementById('modalSiteName').textContent;
-            if (targetSite) {
-                await saveSettings();
-                setTimeout(() => {
-                    closeSettingsModal();
-                }, 1500);
-            }
-        });
+    if (span) {
+        console.log('Назначение обработчика для кнопки закрытия');
+        span.addEventListener('click', closeSettingsModal);
     }
+    if (cancelBtn) {
+        console.log('Назначение обработчика для кнопки Отмена');
+        cancelBtn.addEventListener('click', closeSettingsModal);
+    }
+    // if (saveBtn) { // Убрано
+    //     saveBtn.addEventListener('click', async () => {
+    //         const targetSite = document.getElementById('modalSiteName').textContent;
+    //         if (targetSite) {
+    //             await saveSettings(); // Эта функция не реализована
+    //             setTimeout(() => {
+    //                 closeSettingsModal();
+    //             }, 1500);
+    //         }
+    //     });
+    // }
 
     // Закрытие модального окна при клике вне его
+    console.log('Назначение обработчика для закрытия по клику вне окна');
     window.addEventListener('click', (event) => {
       if (event.target === modal) {
         closeSettingsModal();
@@ -455,6 +472,7 @@
     });
 
     // Закрытие модального окна по клавише Escape
+    console.log('Назначение обработчика для закрытия по Escape');
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && modal?.style.display === 'flex') {
         closeSettingsModal();
@@ -462,15 +480,19 @@
     });
 
     // Добавляем функцию в глобальную область видимости для использования в таблице
+    console.log('Экспорт функции openSettingsModal в window');
     window.openSettingsModal = openSettingsModal;
 
     console.log('Модуль settings-panel.js инициализирован.');
   }
 
   // Запускаем инициализацию после загрузки DOM
+  console.log('Проверка состояния document');
   if (document.readyState === 'loading') {
+    console.log('DOM ещё не загружен, добавление слушателя DOMContentLoaded');
     document.addEventListener('DOMContentLoaded', init);
   } else {
+    console.log('DOM уже загружен, запуск инициализации');
     init();
   }
 
