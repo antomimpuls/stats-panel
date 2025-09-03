@@ -37,6 +37,7 @@
         --text: #fff;
         --success: #28a745;
         --danger: #ff4757;
+        --warning: #ffc107;
       }
       #settingsModal{display:none;position:fixed;z-index:10000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.7);justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
       .modal-content{background:var(--card);color:var(--text);border-radius:10px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;padding:25px;display:flex;flex-direction:column;gap:15px}
@@ -53,6 +54,17 @@
       .status-message{padding:10px;border-radius:5px;text-align:center;display:none}
       .status-success{background:rgba(40,167,69,.2);color:var(--success);border:1px solid var(--success)}
       .status-error{background:rgba(220,53,69,.2);color:var(--danger);border:1px solid var(--danger)}
+      
+      /* Toggle Switch Styles */
+      .switch {position: relative;display: inline-block;width: 50px;height: 24px}
+      .switch input {opacity: 0;width: 0;height: 0}
+      .slider {position: absolute;cursor: pointer;top: 0;left: 0;right: 0;bottom: 0;background-color: #ccc;transition: .4s;border-radius: 24px}
+      .slider:before {position: absolute;content: "";height: 16px;width: 16px;left: 4px;bottom: 4px;background-color: white;transition: .4s;border-radius: 50%}
+      input:checked + .slider {background-color: var(--accent)}
+      input:checked + .slider:before {transform: translateX(26px)}
+      .toggle-container {display: flex;align-items: center;justify-content: space-between;margin-bottom: 1rem}
+      .toggle-label {font-size: .9rem;color: #aaa}
+      .redirect-settings {padding-left: 20px;border-left: 2px solid var(--accent);margin: 15px 0}
     </style>
   `;
 
@@ -65,14 +77,38 @@
           <button class="close">&times;</button>
         </div>
         <div id="settingStatusMessage" class="status-message"></div>
+        
         <div class="input-group">
           <label>Номер телефона:</label>
           <input id="settingPhoneNumber" type="text" placeholder="+7 XXX XXX XX XX" />
         </div>
+        
         <div class="input-group">
           <label>ID Яндекс.Метрики:</label>
           <input id="settingYandexMetrikaId" type="text" placeholder="12345678" />
         </div>
+        
+        <!-- Redirect Settings -->
+        <div class="toggle-container">
+          <span class="toggle-label">Включить редирект:</span>
+          <label class="switch">
+            <input type="checkbox" id="settingEnableRedirect">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div id="redirectSettings" class="redirect-settings" style="display: none;">
+          <div class="input-group">
+            <label>Процент редиректа (%):</label>
+            <input id="settingRedirectPercentage" type="number" min="0" max="100" placeholder="100" />
+          </div>
+          
+          <div class="input-group">
+            <label>Задержка редиректа (сек):</label>
+            <input id="settingRedirectDelaySeconds" type="number" min="0" placeholder="10" />
+          </div>
+        </div>
+        
         <div class="modal-footer">
           <button class="btn cancel" id="cancelSettingsBtn">Отмена</button>
           <button class="btn save" id="saveSettingsBtn">Сохранить</button>
@@ -95,8 +131,25 @@
 
   function populateForm(settings) {
     if (!settings) return;
-    document.getElementById('settingPhoneNumber').value   = settings.phoneNumber || '';
+    document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
     document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
+    
+    // Redirect settings
+    const enableRedirect = settings.enableRedirect || false;
+    document.getElementById('settingEnableRedirect').checked = enableRedirect;
+    document.getElementById('redirectSettings').style.display = enableRedirect ? 'block' : 'none';
+    
+    document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || 100;
+    document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || 10;
+  }
+
+  function setupRedirectToggle() {
+    const toggle = document.getElementById('settingEnableRedirect');
+    const settingsDiv = document.getElementById('redirectSettings');
+    
+    toggle.addEventListener('change', function() {
+      settingsDiv.style.display = this.checked ? 'block' : 'none';
+    });
   }
 
   async function requestTokenOnce() {
@@ -155,8 +208,16 @@
     const s = {};
     const ph = m[1].match(/['"]?phoneNumber['"]?\s*:\s*['"`]([^'"`]*)['"`]/);
     const ym = m[1].match(/['"]?yandexMetrikaId['"]?\s*:\s*['"`]([^'"`]*)['"`]/);
+    const er = m[1].match(/['"]?enableRedirect['"]?\s*:\s*(true|false)/);
+    const rp = m[1].match(/['"]?redirectPercentage['"]?\s*:\s*(\d+)/);
+    const rd = m[1].match(/['"]?redirectDelaySeconds['"]?\s*:\s*(\d+)/);
+    
     if (ph) s.phoneNumber = ph[1];
     if (ym) s.yandexMetrikaId = ym[1];
+    if (er) s.enableRedirect = er[1] === 'true';
+    if (rp) s.redirectPercentage = parseInt(rp[1]);
+    if (rd) s.redirectDelaySeconds = parseInt(rd[1]);
+    
     return { match: m[0], obj: s };
   }
 
@@ -180,8 +241,16 @@
       showStatus('Сохранение...', 'success');
       const { content, sha } = await fetchFile();
       const { obj } = extractSettings(content);
-      obj.phoneNumber   = document.getElementById('settingPhoneNumber').value.trim();
+      
+      // Основные настройки
+      obj.phoneNumber = document.getElementById('settingPhoneNumber').value.trim();
       obj.yandexMetrikaId = document.getElementById('settingYandexMetrikaId').value.trim();
+      
+      // Настройки редиректа
+      obj.enableRedirect = document.getElementById('settingEnableRedirect').checked;
+      obj.redirectPercentage = parseInt(document.getElementById('settingRedirectPercentage').value) || 100;
+      obj.redirectDelaySeconds = parseInt(document.getElementById('settingRedirectDelaySeconds').value) || 10;
+      
       const newSrc = replaceSettings(content, obj);
       await saveFile(newSrc, sha);
       showStatus('Сохранено ✅', 'success');
@@ -195,7 +264,7 @@
   function openSettingsModal(site) {
     document.getElementById('modalSiteName').textContent = site;
     document.getElementById('settingsModal').style.display = 'flex';
-    const statusMsg = document.getElementById('settingSettingsMessage');
+    const statusMsg = document.getElementById('settingStatusMessage');
     if (statusMsg) statusMsg.style.display = 'none';
     loadSettings(site);
   }
@@ -214,6 +283,9 @@
     const modalElement = document.createElement('div');
     modalElement.innerHTML = modalHTML;
     document.body.appendChild(modalElement.firstElementChild);
+
+    // Настройка переключателя редиректа
+    setupRedirectToggle();
 
     const modal = document.getElementById('settingsModal');
     modal.querySelector('.close').onclick = closeSettingsModal;
