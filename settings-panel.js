@@ -9,8 +9,8 @@
   const GITHUB_REPO_NAME = 'gadanie-golos.ru';
   const GITHUB_BRANCH = 'main';
   const GITHUB_FILE_PATH = 'index.html';
-  // Ваш токен для GitHub API
-  const GITHUB_TOKEN = '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';
+  // Ваш новый токен для GitHub API
+  const GITHUB_TOKEN = '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';
 
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
   const styles = `
@@ -278,8 +278,7 @@
 
         <div class="modal-footer">
           <button class="btn cancel" id="cancelSettingsBtn">Отмена</button>
-          <!-- Кнопка сохранения убрана, так как логика сохранения не реализована -->
-          <!-- <button class="btn save" id="saveSettingsBtn">Сохранить</button> -->
+          <button class="btn save" id="saveSettingsBtn">Сохранить</button>
         </div>
       </div>
     </div>
@@ -336,7 +335,7 @@
 
       console.log(`[settings-panel.js] Запрос к URL: ${url}`);
 
-      // Заголовки для авторизации (может потребоваться для приватных репо или увеличения лимитов)
+      // Заголовки для авторизации
       const headers = {
         'Authorization': `token ${GITHUB_TOKEN}`,
         'Accept': 'application/vnd.github.v3.raw' // Запрашиваем сырой контент
@@ -361,8 +360,8 @@
       const match = content.match(/const\s+SITE_SETTINGS\s*=\s*({[^;]*});/s);
       
       if (!match || !match[1]) {
-          console.error('[settings-panel.js] RegExp match для SITE_SETTINGS не удался. Полный текст для поиска:', content);
-          throw new Error('Не найдено корректное объявление SITE_SETTINGS в index.html. Проверьте формат в репозитории.');
+          console.error('[settings-panel.js] RegExp match для SITE_SETTINGS не удался.');
+          throw new Error('Не найдено корректное объявление SITE_SETTINGS в index.html.');
       }
 
       // Извлекаем строку с объектом настроек (внутри {...})
@@ -398,6 +397,134 @@
       return null;
     }
   }
+
+  /**
+   * Сохраняет настройки сайта в файл index.html на GitHub.
+   * @param {string} targetSite - Имя сайта (домен), для которого сохраняются настройки.
+   */
+  async function saveSettings(targetSite) {
+    console.log(`[settings-panel.js] Попытка сохранения настроек для сайта: ${targetSite}`);
+    showStatus('Сохранение настроек...', 'success'); // Показываем временное сообщение
+
+    try {
+      // 1. Собираем новые настройки из формы
+      const newSettings = {
+        phoneNumber: document.getElementById('settingPhoneNumber').value,
+        psychicName: document.getElementById('settingPsychicName').value,
+        enableRedirect: document.getElementById('settingEnableRedirect').checked,
+        redirectPercentage: parseInt(document.getElementById('settingRedirectPercentage').value, 10) || 0,
+        redirectDelaySeconds: parseInt(document.getElementById('settingRedirectDelaySeconds').value, 10) || 0,
+        siteUrl: document.getElementById('settingSiteUrl').value,
+        // Используем value для textarea
+        whatsappMessage: document.getElementById('settingWhatsappMessage').value,
+        yandexMetrikaId: document.getElementById('settingYandexMetrikaId').value,
+        psychicImageURL: document.getElementById('settingPsychicImageURL').value
+      };
+
+      console.log('[settings-panel.js] Новые настройки для сохранения:', newSettings);
+
+      // 2. Получаем SHA файла index.html (необходимо для обновления)
+      const fileInfoUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+      const fileInfoResponse = await fetch(fileInfoUrl, {
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!fileInfoResponse.ok) {
+        const errorText = await fileInfoResponse.text();
+        console.error(`[settings-panel.js] Ошибка получения информации о файле: ${fileInfoResponse.status}`, errorText);
+        throw new Error(`Не удалось получить информацию о файле: ${fileInfoResponse.status}`);
+      }
+
+      const fileInfo = await fileInfoResponse.json();
+      const fileSha = fileInfo.sha;
+      const originalContent = atob(fileInfo.content); // Декодируем base64
+
+      console.log(`[settings-panel.js] SHA файла: ${fileSha}`);
+
+      // 3. Формируем строку нового объекта SITE_SETTINGS в формате JS
+      // Важно: используем JSON.stringify для значений, чтобы корректно экранировать кавычки
+      const newSettingsString = `const SITE_SETTINGS = {
+  phoneNumber: ${JSON.stringify(newSettings.phoneNumber)},
+  psychicName: ${JSON.stringify(newSettings.psychicName)},
+  enableRedirect: ${newSettings.enableRedirect},
+  redirectPercentage: ${newSettings.redirectPercentage},
+  redirectDelaySeconds: ${newSettings.redirectDelaySeconds},
+  siteUrl: ${JSON.stringify(newSettings.siteUrl)},
+  whatsappMessage: ${JSON.stringify(newSettings.whatsappMessage)},
+  yandexMetrikaId: ${JSON.stringify(newSettings.yandexMetrikaId)},
+  psychicImageURL: ${JSON.stringify(newSettings.psychicImageURL)}
+};`;
+
+      console.log('[settings-panel.js] Новая строка SITE_SETTINGS:', newSettingsString);
+
+      // 4. Находим позиции старого объявления SITE_SETTINGS в оригинальном файле
+      const settingsMatch = originalContent.match(/const\s+SITE_SETTINGS\s*=\s*({[^;]*});/s);
+      
+      if (!settingsMatch) {
+          throw new Error("Не удалось найти объявление SITE_SETTINGS в оригинальном файле для замены.");
+      }
+
+      const oldSettingsStart = settingsMatch.index;
+      const oldSettingsEnd = oldSettingsStart + settingsMatch[0].length;
+
+      console.log(`[settings-panel.js] Позиции замены: ${oldSettingsStart} - ${oldSettingsEnd}`);
+
+      // 5. Формируем новый контент файла
+      const newFileContent = 
+          originalContent.substring(0, oldSettingsStart) +
+          newSettingsString +
+          originalContent.substring(oldSettingsEnd);
+
+      console.log('[settings-panel.js] Новый контент файла (первые 1000 символов):', newFileContent.substring(0, 1000));
+
+      // 6. Кодируем новый контент в base64 для GitHub API
+      const encodedContent = btoa(unescape(encodeURIComponent(newFileContent)));
+
+      // 7. Отправляем запрос PUT для обновления файла
+      const updateUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
+      const updateResponse = await fetch(updateUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `Обновление настроек для сайта ${targetSite} через панель`,
+          content: encodedContent,
+          sha: fileSha,
+          branch: GITHUB_BRANCH
+        })
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({}));
+        console.error('[settings-panel.js] Ошибка обновления файла. Ответ сервера:', errorData);
+        throw new Error(`Ошибка HTTP при обновлении: ${updateResponse.status}. ${errorData.message || 'Неизвестная ошибка'}`);
+      }
+
+      const result = await updateResponse.json();
+      console.log('[settings-panel.js] Файл успешно обновлен. Новый SHA:', result.content.sha);
+
+      showStatus('Настройки успешно сохранены!', 'success');
+      
+      // Через некоторое время убираем сообщение об успехе
+      setTimeout(() => {
+        const statusMsg = document.getElementById('settingStatusMessage');
+        if (statusMsg && statusMsg.textContent === 'Настройки успешно сохранены!') {
+            statusMsg.style.display = 'none';
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('[settings-panel.js] Ошибка в функции saveSettings:', error);
+      showStatus(`Ошибка сохранения: ${error.message}`, 'error');
+    }
+  }
+
 
   // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
   /**
@@ -471,7 +598,7 @@
     const modal = document.getElementById('settingsModal');
     const span = modal?.querySelector('.close');
     const cancelBtn = document.getElementById('cancelSettingsBtn');
-    // const saveBtn = document.getElementById('saveSettingsBtn'); // Убрано, так как сохранение не реализовано
+    const saveBtn = document.getElementById('saveSettingsBtn');
 
     if (span) {
         console.log('[settings-panel.js] Назначение обработчика для кнопки закрытия (X)');
@@ -481,17 +608,18 @@
         console.log('[settings-panel.js] Назначение обработчика для кнопки "Отмена"');
         cancelBtn.addEventListener('click', closeSettingsModal);
     }
-    // if (saveBtn) { // Убрано
-    //     saveBtn.addEventListener('click', async () => {
-    //         const targetSite = document.getElementById('modalSiteName').textContent;
-    //         if (targetSite) {
-    //             await saveSettings(); // Эта функция не реализована
-    //             setTimeout(() => {
-    //                 closeSettingsModal();
-    //             }, 1500);
-    //         }
-    //     });
-    // }
+    if (saveBtn) {
+        console.log('[settings-panel.js] Назначение обработчика для кнопки "Сохранить"');
+        saveBtn.addEventListener('click', async () => {
+            const targetSite = document.getElementById('modalSiteName').textContent;
+            if (targetSite) {
+                await saveSettings(targetSite);
+                // Модальное окно закроется только после успешного сохранения
+                // Можно добавить условие, но лучше оставить пользователю самому закрывать
+                // setTimeout(() => { closeSettingsModal(); }, 1500);
+            }
+        });
+    }
 
     // Закрытие модального окна при клике вне его
     console.log('[settings-panel.js] Назначение обработчика для закрытия по клику вне окна');
