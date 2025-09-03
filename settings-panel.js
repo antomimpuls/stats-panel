@@ -10,6 +10,8 @@
   const GITHUB_FILE_PATH = 'index.html';
   const GITHUB_TOKEN = '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';
 
+  console.log('Settings panel initialized');
+
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
   const styles = `
     <style>
@@ -225,57 +227,101 @@
 
   // ===== ФУНКЦИИ РАБОТЫ С GITHUB =====
   async function fetchFile() {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
-      headers: { Authorization: `token ${GITHUB_TOKEN}` }
-    });
-    const data = await res.json();
-    // Правильное декодирование Base64
-    const binaryString = atob(data.content);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    try {
+      console.log('Fetching file from GitHub...');
+      const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
+      console.log('URL:', url);
+      
+      const res = await fetch(url, {
+        headers: { 
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json'
+        }
+      });
+      
+      console.log('Response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('GitHub API error:', res.status, errorText);
+        throw new Error(`GitHub API error: ${res.status} - ${errorText}`);
+      }
+      
+      const data = await res.json();
+      console.log('GitHub response received');
+      
+      // Правильное декодирование Base64
+      const binaryString = atob(data.content);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const content = new TextDecoder().decode(bytes);
+      
+      return { sha: data.sha, content };
+    } catch (error) {
+      console.error('Error fetching file:', error);
+      throw error;
     }
-    const content = new TextDecoder().decode(bytes);
-    return { sha: data.sha, content };
   }
 
   async function saveFile(newContent, sha) {
-    // Правильное кодирование в Base64
-    const encoder = new TextEncoder();
-    const encoded = encoder.encode(newContent);
-    let binaryString = '';
-    for (let i = 0; i < encoded.length; i++) {
-      binaryString += String.fromCharCode(encoded[i]);
+    try {
+      console.log('Saving file to GitHub...');
+      // Правильное кодирование в Base64
+      const encoder = new TextEncoder();
+      const encoded = encoder.encode(newContent);
+      let binaryString = '';
+      for (let i = 0; i < encoded.length; i++) {
+        binaryString += String.fromCharCode(encoded[i]);
+      }
+      const base64Content = btoa(binaryString);
+
+      const payload = {
+        message: 'Обновлено через панель управления',
+        content: base64Content,
+        sha: sha,
+        branch: GITHUB_BRANCH
+      };
+
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('Save response status:', res.status);
+      
+      if (!res.ok) {
+        const err = await res.json();
+        console.error('Save error:', err);
+        throw new Error(err.message || 'Unknown error');
+      }
+
+      const result = await res.json();
+      console.log('File saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving file:', error);
+      throw error;
     }
-    const base64Content = btoa(binaryString);
-
-    const payload = {
-      message: 'Обновлено через панель управления',
-      content: base64Content,
-      sha: sha
-    };
-
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `token ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'unknown');
-    }
-
-    return true;
   }
 
   function extractSettings(source) {
+    console.log('Extracting settings from source...');
+    
     // Ищем объект SITE_SETTINGS
     const match = source.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
-    if (!match) throw new Error('Не удалось найти SITE_SETTINGS');
+    if (!match) {
+      console.error('SITE_SETTINGS not found in source');
+      throw new Error('Не удалось найти SITE_SETTINGS в файле');
+    }
+    
+    console.log('SITE_SETTINGS found');
     
     // Извлекаем содержимое объекта
     const settingsContent = match[1];
@@ -283,22 +329,37 @@
     // Создаем объект безопасным способом
     const settings = {};
     
-    // Ищем отдельные свойства
-    const phoneMatch = settingsContent.match(/phoneNumber:\s*['"]([^'"]*)['"]/);
-    const metricMatch = settingsContent.match(/yandexMetrikaId:\s*['"]([^'"]*)['"]/);
+    // Ищем отдельные свойства с разными вариантами кавычек
+    const phoneMatch = settingsContent.match(/phoneNumber:\s*['"`]([^'"`]*)['"`]/);
+    const metricMatch = settingsContent.match(/yandexMetrikaId:\s*['"`]([^'"`]*)['"`]/);
     
-    if (phoneMatch) settings.phoneNumber = phoneMatch[1];
-    if (metricMatch) settings.yandexMetrikaId = metricMatch[1];
+    if (phoneMatch) {
+      settings.phoneNumber = phoneMatch[1];
+      console.log('Phone number found:', settings.phoneNumber);
+    } else {
+      console.log('Phone number not found');
+    }
+    
+    if (metricMatch) {
+      settings.yandexMetrikaId = metricMatch[1];
+      console.log('Metrika ID found:', settings.yandexMetrikaId);
+    } else {
+      console.log('Metrika ID not found');
+    }
     
     return { match: match[0], obj: settings };
   }
 
   function replaceSettings(source, newObj) {
+    console.log('Replacing settings...');
+    
     // Создаем новую строку настроек
     const newSettings = `const SITE_SETTINGS = {
   phoneNumber: '${newObj.phoneNumber || ''}',
   yandexMetrikaId: '${newObj.yandexMetrikaId || ''}'
 };`;
+    
+    console.log('New settings:', newSettings);
     
     // Заменяем старые настройки новыми
     return source.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, newSettings);
@@ -307,18 +368,24 @@
   // ===== ОСНОВНЫЕ ФУНКЦИИ =====
   async function loadSettings(targetSite) {
     try {
+      console.log('Loading settings for:', targetSite);
+      showStatus('Загрузка...', 'success');
+      
       const { content } = await fetchFile();
       const { obj } = extractSettings(content);
       populateForm(obj);
       showStatus('Данные загружены ✅', 'success');
     } catch (e) {
       console.error('Ошибка загрузки:', e);
-      showStatus('Ошибка загрузки ❌', 'error');
+      showStatus(`Ошибка загрузки: ${e.message}`, 'error');
     }
   }
 
   async function saveSettings(targetSite) {
     try {
+      console.log('Saving settings for:', targetSite);
+      showStatus('Сохранение...', 'success');
+      
       const { content, sha } = await fetchFile();
       const { obj } = extractSettings(content);
 
@@ -335,12 +402,13 @@
       }
     } catch (e) {
       console.error('Ошибка сохранения:', e);
-      showStatus('Ошибка сохранения ❌', 'error');
+      showStatus(`Ошибка сохранения: ${e.message}`, 'error');
     }
   }
 
   // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
   function openSettingsModal(targetSite) {
+    console.log('Opening modal for:', targetSite);
     document.getElementById('modalSiteName').textContent = targetSite;
     document.getElementById('settingsModal').style.display = 'flex';
     const statusMsg = document.getElementById('settingStatusMessage');
@@ -351,17 +419,21 @@
   }
 
   function closeSettingsModal() {
+    console.log('Closing modal');
     document.getElementById('settingsModal').style.display = 'none';
   }
 
   // ===== ИНИЦИАЛИЗАЦИЯ МОДУЛЯ =====
   function init() {
+    console.log('Initializing settings panel...');
+    
     // Добавляем стили
     if (!document.getElementById('settings-modal-styles')) {
       const styleElement = document.createElement('div');
       styleElement.id = 'settings-modal-styles';
       styleElement.innerHTML = styles;
       document.head.appendChild(styleElement);
+      console.log('Styles added');
     }
 
     // Добавляем модальное окно
@@ -369,6 +441,7 @@
       const modalElement = document.createElement('div');
       modalElement.innerHTML = modalHTML;
       document.body.appendChild(modalElement.firstElementChild);
+      console.log('Modal added');
     }
 
     // Назначаем обработчики событий
@@ -377,13 +450,22 @@
     const cancelBtn = document.getElementById('cancelSettingsBtn');
     const saveBtn = document.getElementById('saveSettingsBtn');
 
-    if (span) span.addEventListener('click', closeSettingsModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeSettingsModal);
+    if (span) {
+      span.addEventListener('click', closeSettingsModal);
+      console.log('Close handler added');
+    }
+    
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeSettingsModal);
+      console.log('Cancel handler added');
+    }
+    
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
         const targetSite = document.getElementById('modalSiteName').textContent;
         if (targetSite) await saveSettings(targetSite);
       });
+      console.log('Save handler added');
     }
 
     window.addEventListener('click', (event) => {
@@ -398,6 +480,7 @@
 
     // Делаем функцию доступной глобально
     window.openSettingsModal = openSettingsModal;
+    console.log('Settings panel initialized successfully');
   }
 
   // Запускаем инициализацию
