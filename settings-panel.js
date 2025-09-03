@@ -8,7 +8,7 @@
   const GITHUB_REPO_NAME = 'gadanie-golos.ru';
   const GITHUB_BRANCH = 'main';
   const GITHUB_FILE_PATH = 'index.html';
-  const GITHUB_TOKEN = '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';
+  const GITHUB_TOKEN = '';
 
   console.log('Settings panel initialized');
 
@@ -491,6 +491,7 @@
   }
 
 })();
+
 
 
 
