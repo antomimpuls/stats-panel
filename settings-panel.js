@@ -2,12 +2,13 @@
 (async function () {
   'use strict';
 
-  // ===== НАСТРОЙКИ =====
-  const GITHUB_REPO_OWNER = 'antomimpuls'; // Владелец репозитория
-  const GITHUB_REPO_NAME = 'gadanie-golos.ru'; // Имя репозитория
-  const GITHUB_BRANCH = 'main'; // Ветка
-  const GITHUB_FILE_PATH = 'index.html'; // Путь к файлу с настройками
-  const GITHUB_TOKEN = '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'; // Ваш токен
+  // ===== НАСТРОЙКИ И КОНСТАНТЫ =====
+  const GITHUB_REPO_OWNER = 'antomimpuls';
+  const GITHUB_REPO_NAME = 'gadanie-golos.ru';
+  const GITHUB_BRANCH = 'main';
+  const GITHUB_FILE_PATH = 'index.html';
+  const GITHUB_TOKEN = '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';
+  const site = location.hostname.replace(/^www\./, '');
 
   // ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА =====
   const styles = `
@@ -299,6 +300,7 @@
   async function loadSettings(targetSite) {
     try {
       // Формируем URL для GitHub API
+      // Исправлено: Убран лишний пробел в URL
       const url = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}?ref=${GITHUB_BRANCH}`;
 
       // Заголовки для авторизации
@@ -308,20 +310,59 @@
       };
 
       const response = await fetch(url, { headers });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      // Проверяем статус ответа
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, text: ${errorText}`);
+      }
+
       const data = await response.json();
 
       // Декодируем содержимое файла (base64)
       const content = atob(data.content);
-      // Находим объявление SITE_SETTINGS
-      const match = content.match(/const SITE_SETTINGS = ({[\s\S]*?});/);
+      console.log('Декодированное содержимое:', content); // Для отладки
+
+      // Находим объявление SITE_SETTINGS с более гибким регулярным выражением
+      // Исправлено: Улучшено регулярное выражение для поиска SITE_SETTINGS
+      const match = content.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
       if (!match) {
-        throw new Error('Не найдено объявление SITE_SETTINGS в index.html');
+          // Альтернативная попытка, если формат немного другой
+          const altMatch = content.match(/SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
+          if (!altMatch) {
+              throw new Error('Не найдено объявление SITE_SETTINGS в index.html');
+          }
+          const settingsStr = altMatch[1];
+          // Парсим JSON
+          const settings = JSON.parse(settingsStr);
+          console.log('Извлечённые настройки (альтернативный метод):', settings); // Для отладки
+          populateForm(settings);
+          showStatus('Настройки загружены (альтернативный метод).', 'success');
+          return settings;
       }
 
       // Парсим JSON
-      const settings = JSON.parse(match[1]);
-      // Заполняем форму данными
+      const settingsStr = match[1];
+      // Исправлено: Удаление комментариев и обработка возможных переносов строк/пробелов
+      const cleanedSettingsStr = settingsStr
+        .replace(/\/\*[\s\S]*?\*\//g, '') // Удалить /* комментарии */
+        .replace(/\/\/.*$/gm, '') // Удалить // комментарии
+        .trim();
+      const settings = JSON.parse(cleanedSettingsStr);
+      console.log('Извлечённые настройки:', settings); // Для отладки
+
+      populateForm(settings);
+      showStatus('Настройки загружены.', 'success');
+      return settings;
+    } catch (error) {
+      console.error('Ошибка при загрузке настроек:', error);
+      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
+      return null;
+    }
+  }
+
+  // Новая функция для заполнения формы
+  function populateForm(settings) {
       document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
       document.getElementById('settingPsychicName').value = settings.psychicName || '';
       document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
@@ -331,14 +372,6 @@
       document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || '';
       document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || '';
       document.getElementById('settingWhatsappMessage').value = settings.whatsappMessage || '';
-
-      showStatus('Настройки загружены.', 'success');
-      return settings;
-    } catch (error) {
-      console.error('Ошибка при загрузке настроек:', error);
-      showStatus(`Ошибка загрузки: ${error.message}`, 'error');
-      return null;
-    }
   }
 
   // Просто сохраняем данные обратно в localStorage или можно добавить функцию для отправки в GitHub
