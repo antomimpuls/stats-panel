@@ -6,6 +6,24 @@
   const GITHUB_REPO_OWNER = 'antomimpuls';
   let   GITHUB_REPO_NAME  = 'gadanie-golos.ru'; // будет перезаписан
   const GITHUB_BRANCH     = 'main';
+  
+  function replaceSettings(src, obj) {
+    // сохраняем все оригинальные поля
+    const oldMatch = src.match(/const\s+SITE_SETTINGS\s*=\s*({[\s\S]*?});/);
+    if (!oldMatch) throw new Error('SITE_SETTINGS не найден');
+
+    // безопасно парсим старый объект
+    const oldObjStr = oldMatch[1];
+    const oldObj = new Function('return ' + oldObjStr)();
+
+    // обновляем только нужные
+    const newObj = { ...oldObj, ...obj };
+
+    // сериализуем обратно
+    const newSet = 'const SITE_SETTINGS = ' + JSON.stringify(newObj, null, 2).replace(/"/g, "'") + ';';
+    return src.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, newSet);
+  }
+  
   const GITHUB_FILE_PATH  = 'index.html';
   let GITHUB_TOKEN        = sessionStorage.getItem('github_token') || '';
 
@@ -140,11 +158,6 @@
     if (ph) s.phoneNumber = ph[1];
     if (ym) s.yandexMetrikaId = ym[1];
     return { match: m[0], obj: s };
-  }
-
-  function replaceSettings(src, obj) {
-    const newSet = `const SITE_SETTINGS = {\n  'phoneNumber': '${obj.phoneNumber || ''}',\n  'yandexMetrikaId': '${obj.yandexMetrikaId || ''}'\n};`;
-    return src.replace(/const\s+SITE_SETTINGS\s*=\s*{[\s\S]*?};/, newSet);
   }
 
   // ===== Основные операции =====
