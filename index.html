@@ -153,14 +153,6 @@
     .zero-stats {
       opacity: 0.6;
     }
-    .success-message {
-      background: #4CAF50;
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      margin: 10px 0;
-      text-align: center;
-    }
     /* --- Drag and drop styles --- */
     .draggable {
         cursor: move; /* fallback if grab cursor is unsupported */
@@ -291,7 +283,7 @@
         }
         await processTableData();
         renderTable();
-        hideMessage();
+        // hideMessage(); // Удалено
       } catch (e){
         showError('Ошибка загрузки: '+ e.message);
         console.error('Ошибка загрузки:', e);
@@ -349,7 +341,7 @@
             console.error("Не удалось очистить порядок из localStorage", e);
         }
         renderTable();
-        showMessage('Пользовательский порядок сброшен!');
+        // showMessage('Пользовательский порядок сброшен!'); // Удалено
     }
     // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
     async function processTableData(selectedDate = new Date().toISOString().split('T')[0]) {
@@ -668,11 +660,11 @@
             throw new Error("Неверный формат ответа от сервера");
         }
         if (data.status !== 'success') throw new Error(data.message);
-        showMessage(`Статистика для ${site} обнулена (${data.message})`);
+        // showMessage(`Статистика для ${site} обнулена (${data.message})`); // Удалено
         loadStats(); // Перезагрузка данных после сброса
       } catch (err) {
         console.error(err);
-        // УБРАНО: showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning');
+        // УБРАНО: showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning'); // Удалено
       } finally {
         document.body.classList.remove('loading');
       }
@@ -697,10 +689,10 @@
             throw new Error("Неверный формат ответа от сервера");
         }
         if (data.status !== 'success') throw new Error(data.message);
-        showMessage('Комментарий сохранён!');
+        // showMessage('Комментарий сохранён!'); // Удалено
       } catch (err) {
         console.error(err);
-        showMessage('Ошибка сохранения комментария: ' + err.message, 'warning');
+        // showMessage('Ошибка сохранения комментария: ' + err.message, 'warning'); // Удалено
       }
     }
     // ===== СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
@@ -724,35 +716,35 @@
             throw new Error("Неверный формат ответа от сервера");
         }
         if (data.status !== 'success') throw new Error(data.message);
-        showMessage('Вся статистика в таблице сброшена!');
+        // showMessage('Вся статистика в таблице сброшена!'); // Удалено
         loadStats(); // Перезагрузка данных после сброса
       } catch (error) {
         console.error('Ошибка при сбросе всей статистики:', error);
-        // УБРАНО: showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning');
+        // УБРАНО: showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning'); // Удалено
       } finally {
         document.body.classList.remove('loading');
       }
     }
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-    function showMessage(message, type = 'success') {
-      hideMessage();
-      const messageDiv = document.createElement('div');
-      messageDiv.className = type === 'success' ? 'success-message' : 'success-message'; // Изменено: всегда success-message
-      messageDiv.textContent = message;
-      messageDiv.id = 'tempMessage';
-      document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
-      if (type === 'success') {
-          setTimeout(() => {
-              if (messageDiv.parentNode) messageDiv.remove();
-          }, 3000);
-      }
-    }
-    function hideMessage() {
-        const existingMessage = document.getElementById('tempMessage');
-        if (existingMessage) {
-            existingMessage.remove();
-        }
-    }
+    // function showMessage(message, type = 'success') { // Удалено
+    //   hideMessage(); // Удалено
+    //   const messageDiv = document.createElement('div');
+    //   messageDiv.className = type === 'success' ? 'success-message' : 'success-message'; // Изменено: всегда success-message
+    //   messageDiv.textContent = message;
+    //   messageDiv.id = 'tempMessage';
+    //   document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
+    //   if (type === 'success') {
+    //       setTimeout(() => {
+    //           if (messageDiv.parentNode) messageDiv.remove();
+    //       }, 3000);
+    //   }
+    // }
+    // function hideMessage() { // Удалено
+    //     const existingMessage = document.getElementById('tempMessage');
+    //     if (existingMessage) {
+    //         existingMessage.remove();
+    //     }
+    // }
     function showError(msg){
       document.body.innerHTML = `<div class="error">${msg}</div>`;
     }
