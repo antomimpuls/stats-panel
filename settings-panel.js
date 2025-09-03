@@ -372,7 +372,7 @@
     }
   }
 
-  async function saveSettings(targetSite, settingsData) {
+  async function saveSettings(targetSite) {
     const repoConfig = {
       owner: document.getElementById('settingOwner').value.trim(),
       repo: document.getElementById('settingRepo').value.trim(),
