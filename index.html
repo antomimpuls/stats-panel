@@ -667,14 +667,21 @@
           method: 'POST',
           body: form
         });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const txt = await res.text();
-        const data = JSON.parse(txt);
+        let data;
+        try {
+            data = JSON.parse(txt);
+        } catch (e) {
+            throw new Error("Неверный формат ответа от сервера");
+        }
         if (data.status !== 'success') throw new Error(data.message);
         showMessage(`Статистика для ${site} обнулена (${data.message})`);
         loadStats(); // Перезагрузка данных после сброса
       } catch (err) {
-        showMessage('Ошибка: ' + err.message, 'warning');
         console.error(err);
+        // Не показываем alert, не выводим "Failed to fetch"
+        showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
@@ -690,13 +697,19 @@
           method: 'POST',
           body: form
         });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const txt = await res.text();
-        const data = JSON.parse(txt);
+        let data;
+        try {
+            data = JSON.parse(txt);
+        } catch (e) {
+            throw new Error("Неверный формат ответа от сервера");
+        }
         if (data.status !== 'success') throw new Error(data.message);
         showMessage('Комментарий сохранён!');
       } catch (err) {
-        showMessage('Ошибка сохранения комментария: ' + err.message, 'warning');
         console.error(err);
+        showMessage('Ошибка сохранения комментария: ' + err.message, 'warning');
       }
     }
     // ===== СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
@@ -711,14 +724,20 @@
           method: 'POST',
           body: form
         });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const txt = await res.text();
-        const data = JSON.parse(txt);
+        let data;
+        try {
+            data = JSON.parse(txt);
+        } catch (e) {
+            throw new Error("Неверный формат ответа от сервера");
+        }
         if (data.status !== 'success') throw new Error(data.message);
         showMessage('Вся статистика в таблице сброшена!');
         loadStats(); // Перезагрузка данных после сброса
       } catch (error) {
-        console.error('Ошибка при сбросе всей статистики в таблице:', error);
-        showMessage('Ошибка при сбросе всей статистики в таблице: ' + error.message, 'warning');
+        console.error('Ошибка при сбросе всей статистики:', error);
+        showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning');
       } finally {
         document.body.classList.remove('loading');
       }
