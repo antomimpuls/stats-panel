@@ -1,0 +1,1 @@
+window.GITHUB_TOKEN = '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';
