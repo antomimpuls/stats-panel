@@ -235,6 +235,7 @@
         align-items: center;
         justify-content: center;
         transition: opacity 0.25s;
+        margin: 2px;
       }
       
       .action-btn:hover {
@@ -511,52 +512,6 @@
 
     // Добавляем функцию в глобальную область видимости для использования в таблице
     window.openSettingsModal = openSettingsModal;
-
-    // Интеграция в Панель: добавляем 'settings' в columnOrder и обновляем renderTableBody
-    // Предполагаем, что эти переменные и функции существуют в глобальной области видимости index.html
-    try {
-        // Добавляем 'settings' в columnOrder, если её там ещё нет
-        if (typeof columnOrder !== 'undefined' && !columnOrder.includes('settings')) {
-            columnOrder.push('settings');
-            console.log('Колонка "settings" добавлена в columnOrder.');
-        }
-
-        // Переопределяем или модифицируем renderTableBody
-        // Это предполагает, что оригинальная функция renderTableBody доступна
-        if (typeof originalRenderTableBody === 'undefined' && typeof renderTableBody === 'function') {
-            window.originalRenderTableBody = renderTableBody;
-        }
-        
-        if (typeof originalRenderTableBody === 'function') {
-            window.renderTableBody = function() {
-                originalRenderTableBody(); // Вызываем оригинальную функцию
-                
-                // После отрисовки таблицы добавляем кнопки настроек
-                const tbody = document.querySelector('#statsTable tbody');
-                if (tbody) {
-                    const rows = tbody.querySelectorAll('tr');
-                    rows.forEach((row, index) => {
-                        // Предполагаем, что item доступен или можно получить site из ячеек
-                        // Этот подход может потребовать адаптации в зависимости от структуры данных в index.html
-                        const siteCell = row.cells[0]; // Предполагаем, что первая ячейка содержит имя сайта
-                        if (siteCell) {
-                            const siteName = siteCell.textContent.trim();
-                            // Создаем ячейку для кнопки настроек
-                            const settingsCell = document.createElement('td');
-                            settingsCell.innerHTML = `<button class="action-btn" onclick="openSettingsModal('${siteName}')">⚙️</button>`;
-                            row.appendChild(settingsCell);
-                        }
-                    });
-                }
-            };
-            console.log('renderTableBody обновлена для добавления кнопок настроек.');
-        } else {
-             console.warn('Не удалось переопределить renderTableBody. Убедитесь, что она существует.');
-        }
-        
-    } catch (e) {
-        console.error("Ошибка при интеграции в Панель:", e);
-    }
 
     console.log('Модуль settings-panel.js инициализирован.');
   }
