@@ -1,9 +1,10 @@
 // settings-panel.js
+// Модуль для отображения и редактирования настроек сайта из GitHub
 (async function () {
   'use strict';
 
   // ===== НАСТРОЙКИ И КОНСТАНТЫ =====
-  // Эти параметры можно оставить как есть, так как они зашиты в логику получения файла
+  // Параметры репозитория жестко заданы, как указано
   const GITHUB_REPO_OWNER = 'antomimpuls';
   const GITHUB_REPO_NAME = 'gadanie-golos.ru';
   const GITHUB_BRANCH = 'main';
@@ -242,7 +243,7 @@
     </style>
   `;
 
-  // ===== HTML МОДАЛЬНОГО ОКНА (БЕЗ БЛОКА РЕПОЗИТОРИЯ) =====
+  // ===== HTML МОДАЛЬНОГО ОКНА (ТОЛЬКО НУЖНЫЕ НАСТРОЙКИ) =====
   const modalHTML = `
     <div id="settingsModal">
       <div class="modal-content">
@@ -254,18 +255,18 @@
         <div id="settingStatusMessage" class="status-message"></div>
 
         <!-- Блок настроек -->
-        <input id="settingPhoneNumber" placeholder="+79001234567">
+        <input id="settingPhoneNumber" placeholder="Номер телефона">
         <input id="settingPsychicName" placeholder="Имя экстрасенса">
         <input id="settingYandexMetrikaId" placeholder="ID Яндекс.Метрики">
-        <input id="settingSiteUrl" placeholder="https://site.ru">
-        <input id="settingPsychicImageURL" placeholder="URL фото">
+        <input id="settingSiteUrl" placeholder="URL сайта">
+        <input id="settingPsychicImageURL" placeholder="URL фото экстрасенса">
         
         <div style="display: flex; align-items: center; gap: 10px;">
           <label class="switch">
             <input type="checkbox" id="settingEnableRedirect">
             <span class="slider"></span>
           </label>
-          <span>Редирект</span>
+          <span>Включить редирект</span>
         </div>
         
         <div class="form-grid">
@@ -285,12 +286,18 @@
   `;
 
   // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+  /**
+   * Отображает сообщение статуса в модальном окне.
+   * @param {string} message - Текст сообщения.
+   * @param {string} [type='success'] - Тип сообщения ('success' или 'error').
+   */
   function showStatus(message, type = 'success') {
     const statusMsg = document.getElementById('settingStatusMessage');
     if (!statusMsg) return;
     statusMsg.textContent = message;
     statusMsg.className = `status-message status-${type}`;
     statusMsg.style.display = 'block';
+    // Автоматически скрыть сообщение через 5 секунд
     setTimeout(() => {
       if (statusMsg.textContent === message) {
         statusMsg.style.display = 'none';
@@ -298,93 +305,107 @@
     }, 5000);
   }
 
+  /**
+   * Заполняет форму модального окна данными настроек.
+   * @param {Object} settings - Объект с настройками сайта.
+   */
+  function populateForm(settings) {
+    if (!settings) return;
+    document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
+    document.getElementById('settingPsychicName').value = settings.psychicName || '';
+    document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
+    document.getElementById('settingSiteUrl').value = settings.siteUrl || '';
+    document.getElementById('settingPsychicImageURL').value = settings.psychicImageURL || '';
+    document.getElementById('settingEnableRedirect').checked = settings.enableRedirect === true;
+    document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || '';
+    document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || '';
+    // Используем value для textarea, чтобы сохранить переносы строк
+    document.getElementById('settingWhatsappMessage').value = settings.whatsappMessage || '';
+  }
+
   // ===== ФУНКЦИИ РАБОТЫ С НАСТРОЙКАМИ =====
+  /**
+   * Загружает настройки сайта из файла index.html на GitHub.
+   * @param {string} targetSite - Имя сайта (домен), для которого загружаются настройки.
+   */
   async function loadSettings(targetSite) {
-    console.log(`Попытка загрузки настроек для сайта: ${targetSite}`);
+    console.log(`[settings-panel.js] Попытка загрузки настроек для сайта: ${targetSite}`);
     try {
-      // Формируем URL для GitHub API для получения содержимого файла
-      // Используем прямую ссылку на содержимое файла
+      // Формируем URL для получения "сырого" содержимого файла с GitHub
       const url = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/${GITHUB_BRANCH}/${GITHUB_FILE_PATH}`;
 
-      console.log(`Запрос к URL: ${url}`);
+      console.log(`[settings-panel.js] Запрос к URL: ${url}`);
 
-      // Заголовки для авторизации (если потребуется, хотя для raw.githubusercontent.com может и не нужно)
-      // const headers = {
-      //   'Authorization': `token ${GITHUB_TOKEN}`,
-      //   'Accept': 'application/vnd.github.v3.raw' // Запрашиваем сырой контент
-      // };
-      // const response = await fetch(url, { headers });
+      // Заголовки для авторизации (может потребоваться для приватных репо или увеличения лимитов)
+      const headers = {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3.raw' // Запрашиваем сырой контент
+      };
 
-      // Простой запрос без специальных заголовков для raw.githubusercontent.com
-      const response = await fetch(url);
+      // Выполняем запрос к GitHub
+      const response = await fetch(url, { headers });
 
-      // Проверяем статус ответа
+      // Проверяем, успешен ли HTTP-запрос
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Ошибка HTTP: ${response.status}`, errorText);
-        throw new Error(`HTTP error! status: ${response.status}, text: ${errorText.substring(0, 200)}`);
+        console.error(`[settings-panel.js] Ошибка HTTP при запросе к GitHub: ${response.status}`, errorText.substring(0, 300));
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Получаем текст содержимого файла
+      // Получаем текст содержимого файла index.html
       const content = await response.text();
-      console.log('Получено содержимое файла index.html (первые 500 символов):', content.substring(0, 500));
+      console.log(`[settings-panel.js] Получено содержимое файла index.html (первые 1000 символов):`, content.substring(0, 1000));
 
-      // Находим объявление SITE_SETTINGS с более надежным регулярным выражением
-      // Это выражение ищет SITE_SETTINGS и захватывает всё до ближайшей точки с запятой после закрывающей фигурной скобки
+      // Ищем объявление SITE_SETTINGS в содержимом файла
+      // Регулярное выражение ищет const SITE_SETTINGS = { ... }; и захватывает только {...}
       const match = content.match(/const\s+SITE_SETTINGS\s*=\s*({[^;]*});/s);
       
       if (!match || !match[1]) {
-          console.error('RegExp match для SITE_SETTINGS не удался. Полный текст для поиска:', content);
+          console.error('[settings-panel.js] RegExp match для SITE_SETTINGS не удался. Полный текст для поиска:', content);
           throw new Error('Не найдено корректное объявление SITE_SETTINGS в index.html. Проверьте формат в репозитории.');
       }
 
-      const settingsStr = match[1];
-      console.log('Найденная строка настроек:', settingsStr);
+      // Извлекаем строку с объектом настроек (внутри {...})
+      let settingsStr = match[1];
+      console.log('[settings-panel.js] Найденная строка настроек (до очистки):', settingsStr);
 
-      // Парсим JSON
+      // Очищаем строку от комментариев JavaScript, которые могут мешать JSON.parse
+      settingsStr = settingsStr
+        .replace(/\/\*[\s\S]*?\*\//g, '') // Удалить /* многострочные комментарии */
+        .replace(/\/\/.*$/gm, '') // Удалить // однострочные комментарии
+        .trim(); // Удалить пробелы в начале и конце
+
+      console.log('[settings-panel.js] Строка настроек после очистки от комментариев:', settingsStr);
+
+      // Парсим очищенную строку как JSON
       let settings;
       try {
         settings = JSON.parse(settingsStr);
-        console.log('Успешно распарсенные настройки:', settings);
+        console.log('[settings-panel.js] Успешно распарсенные настройки:', settings);
       } catch (parseError) {
-         console.error('Ошибка парсинга JSON из SITE_SETTINGS:', parseError);
-         // Попробуем "почистить" строку вручную, если стандартный JSON.parse не сработал
-         // Удаляем возможные комментарии и лишние символы (это рискованно, но может помочь)
-         const cleanedSettingsStr = settingsStr
-           .replace(/\/\*[\s\S]*?\*\//g, '') // Удалить /* комментарии */
-           .replace(/\/\/.*$/gm, '') // Удалить // комментарии
-           .replace(/,\s*([}\]])/g, '$1') // Удалить запятые перед закрывающими скобками (иногда бывает)
-           .trim();
-         console.log('Очищенная строка настроек для повторной попытки:', cleanedSettingsStr);
-         settings = JSON.parse(cleanedSettingsStr);
-         console.log('Настройки после очистки и повторного парсинга:', settings);
+         console.error('[settings-panel.js] Ошибка парсинга JSON из SITE_SETTINGS:', parseError);
+         throw new Error(`Ошибка парсинга настроек: ${parseError.message}`);
       }
 
-
-      // Заполняем форму данными
-      document.getElementById('settingPhoneNumber').value = settings.phoneNumber || '';
-      document.getElementById('settingPsychicName').value = settings.psychicName || '';
-      document.getElementById('settingYandexMetrikaId').value = settings.yandexMetrikaId || '';
-      document.getElementById('settingSiteUrl').value = settings.siteUrl || '';
-      document.getElementById('settingPsychicImageURL').value = settings.psychicImageURL || '';
-      document.getElementById('settingEnableRedirect').checked = settings.enableRedirect === true;
-      document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || '';
-      document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || '';
-      document.getElementById('settingWhatsappMessage').value = settings.whatsappMessage || '';
+      // Заполняем форму модального окна полученными данными
+      populateForm(settings);
 
       showStatus('Настройки успешно загружены.', 'success');
       return settings;
     } catch (error) {
-      console.error('Критическая ошибка в функции loadSettings:', error);
+      console.error('[settings-panel.js] Критическая ошибка в функции loadSettings:', error);
       showStatus(`Ошибка загрузки: ${error.message}`, 'error');
       return null;
     }
   }
 
-
   // ===== УПРАВЛЕНИЕ МОДАЛЬНЫМ ОКНОМ =====
+  /**
+   * Открывает модальное окно настроек для указанного сайта.
+   * @param {string} targetSite - Имя сайта (домен).
+   */
   function openSettingsModal(targetSite) {
-    console.log(`Открытие модального окна для сайта: ${targetSite}`);
+    console.log(`[settings-panel.js] Открытие модального окна для сайта: ${targetSite}`);
     document.getElementById('modalSiteName').textContent = targetSite;
     document.getElementById('settingsModal').style.display = 'flex';
     // Сбрасываем сообщение статуса
@@ -394,9 +415,13 @@
       statusMsg.className = 'status-message';
       statusMsg.textContent = '';
     }
+    // Загружаем настройки для выбранного сайта
     loadSettings(targetSite);
   }
 
+  /**
+   * Закрывает модальное окно настроек.
+   */
   function closeSettingsModal() {
     document.getElementById('settingsModal').style.display = 'none';
     // Очищаем сообщение статуса при закрытии
@@ -408,47 +433,52 @@
     }
   }
 
-  // ===== ИНИЦИАЛИЗАЦИЯ =====
+  // ===== ИНИЦИАЛИЗАЦИЯ МОДУЛЯ =====
+  /**
+   * Инициализирует модуль: добавляет стили и модальное окно в DOM,
+   * назначает обработчики событий.
+   */
   function init() {
-    console.log('Инициализация settings-panel.js');
+    console.log('[settings-panel.js] Инициализация модуля settings-panel.js');
     // Проверяем, что скрипт выполняется в браузере
     if (typeof document === 'undefined' || typeof window === 'undefined') {
-      console.warn('Скрипт settings-panel.js предназначен для выполнения в браузере.');
+      console.warn('[settings-panel.js] Скрипт settings-panel.js предназначен для выполнения в браузере.');
       return;
     }
 
-    // Добавляем стили и модальное окно в DOM
+    // Добавляем стили в <head> документа, если они ещё не добавлены
     if (!document.getElementById('settings-modal-styles')) {
-      console.log('Добавление стилей в DOM');
+      console.log('[settings-panel.js] Добавление стилей в <head>');
       const styleElement = document.createElement('div');
       styleElement.id = 'settings-modal-styles';
       styleElement.innerHTML = styles;
       document.head.appendChild(styleElement);
     } else {
-       console.log('Стили уже существуют в DOM');
+       console.log('[settings-panel.js] Стили уже существуют в <head>');
     }
 
+    // Добавляем HTML модального окна в <body> документа, если оно ещё не добавлено
     if (!document.getElementById('settingsModal')) {
-       console.log('Добавление модального окна в DOM');
+       console.log('[settings-panel.js] Добавление модального окна в <body>');
       const modalElement = document.createElement('div');
       modalElement.innerHTML = modalHTML;
       document.body.appendChild(modalElement.firstElementChild);
     } else {
-       console.log('Модальное окно уже существует в DOM');
+       console.log('[settings-panel.js] Модальное окно уже существует в <body>');
     }
 
-    // Назначаем обработчики событий
+    // Назначаем обработчики событий для элементов модального окна
     const modal = document.getElementById('settingsModal');
     const span = modal?.querySelector('.close');
     const cancelBtn = document.getElementById('cancelSettingsBtn');
     // const saveBtn = document.getElementById('saveSettingsBtn'); // Убрано, так как сохранение не реализовано
 
     if (span) {
-        console.log('Назначение обработчика для кнопки закрытия');
+        console.log('[settings-panel.js] Назначение обработчика для кнопки закрытия (X)');
         span.addEventListener('click', closeSettingsModal);
     }
     if (cancelBtn) {
-        console.log('Назначение обработчика для кнопки Отмена');
+        console.log('[settings-panel.js] Назначение обработчика для кнопки "Отмена"');
         cancelBtn.addEventListener('click', closeSettingsModal);
     }
     // if (saveBtn) { // Убрано
@@ -464,7 +494,7 @@
     // }
 
     // Закрытие модального окна при клике вне его
-    console.log('Назначение обработчика для закрытия по клику вне окна');
+    console.log('[settings-panel.js] Назначение обработчика для закрытия по клику вне окна');
     window.addEventListener('click', (event) => {
       if (event.target === modal) {
         closeSettingsModal();
@@ -472,27 +502,28 @@
     });
 
     // Закрытие модального окна по клавише Escape
-    console.log('Назначение обработчика для закрытия по Escape');
+    console.log('[settings-panel.js] Назначение обработчика для закрытия по Escape');
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && modal?.style.display === 'flex') {
         closeSettingsModal();
       }
     });
 
-    // Добавляем функцию в глобальную область видимости для использования в таблице
-    console.log('Экспорт функции openSettingsModal в window');
+    // Добавляем функцию openSettingsModal в глобальную область видимости window,
+    // чтобы она была доступна из других скриптов (например, из таблицы)
+    console.log('[settings-panel.js] Экспорт функции openSettingsModal в window');
     window.openSettingsModal = openSettingsModal;
 
-    console.log('Модуль settings-panel.js инициализирован.');
+    console.log('[settings-panel.js] Модуль settings-panel.js успешно инициализирован.');
   }
 
   // Запускаем инициализацию после загрузки DOM
-  console.log('Проверка состояния document');
+  console.log('[settings-panel.js] Проверка состояния document');
   if (document.readyState === 'loading') {
-    console.log('DOM ещё не загружен, добавление слушателя DOMContentLoaded');
+    console.log('[settings-panel.js] DOM ещё не загружен, добавление слушателя DOMContentLoaded');
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    console.log('DOM уже загружен, запуск инициализации');
+    console.log('[settings-panel.js] DOM уже загружен, запуск инициализации');
     init();
   }
 
