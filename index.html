@@ -161,14 +161,6 @@
       margin: 10px 0;
       text-align: center;
     }
-    .warning-message {
-      background: #ff9800;
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      margin: 10px 0;
-      text-align: center;
-    }
     /* --- Drag and drop styles --- */
     .draggable {
         cursor: move; /* fallback if grab cursor is unsupported */
@@ -276,7 +268,7 @@
     async function loadStats() {
       try {
         document.body.classList.add('loading');
-        showMessage('Загрузка данных...', 'warning');
+        // showMessage('Загрузка данных...', 'warning'); // Удалено
         loadSavedOrder();
         const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
         const dataRes = await fetch(dataUrl);
@@ -716,7 +708,7 @@
       // Убираем confirm
       try {
         document.body.classList.add('loading');
-        showMessage('Сбрасываем всю статистику в таблице...', 'warning');
+        // showMessage('Сбрасываем всю статистику в таблице...', 'warning'); // Удалено
         const form = new URLSearchParams();
         form.append('action', 'resetAllStats');
         const res = await fetch(APPS_SCRIPT_URL.trim(), {
@@ -745,7 +737,7 @@
     function showMessage(message, type = 'success') {
       hideMessage();
       const messageDiv = document.createElement('div');
-      messageDiv.className = type === 'success' ? 'success-message' : 'warning-message';
+      messageDiv.className = type === 'success' ? 'success-message' : 'success-message'; // Изменено: всегда success-message
       messageDiv.textContent = message;
       messageDiv.id = 'tempMessage';
       document.querySelector('.container').insertBefore(messageDiv, document.getElementById('dateFilter'));
