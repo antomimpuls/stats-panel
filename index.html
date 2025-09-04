@@ -1,194 +1,48 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Панель статистики с перетаскиванием</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Панель статистики</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <style>
-    :root {
-      --bg: #0a0a0f;
-      --card: #1a1a25;
-      --accent: #b388eb;
-      --text: #fff;
+    :root{
+      --bg:#0a0a0f;
+      --card:#1a1a25;
+      --accent:#b388eb;
+      --text:#fff;
+      --danger:#ff4757;
+      --success:#28a745;
     }
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    .header-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-    .controls {
-      display: flex;
-      gap: 12px;
-    }
-    .btn {
-      background: var(--accent);
-      border: 0;
-      border-radius: 8px;
-      padding: 10px 20px;
-      color: var(--bg);
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.25s;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn:hover {
-      opacity: 0.8;
-    }
-    .btn.reset {
-      background: #ff4757;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      table-layout: fixed;
-    }
-    th,
-    td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #333;
-      position: relative;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    th {
-      background: #121218;
-      color: var(--accent);
-      cursor: col-resize;
-      user-select: none;
-    }
-    th::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 3px;
-      height: 100%;
-      background: var(--accent);
-      opacity: 0.3;
-      cursor: col-resize;
-    }
-    th:hover::after {
-      opacity: 0.8;
-    }
-    tr:hover {
-      background: #1f1f2a;
-    }
-    .action-btn {
-      background: var(--accent);
-      border: 0;
-      border-radius: 50%; /* Сделаем кнопки круглыми */
-      width: 30px; /* Фиксированная ширина */
-      height: 30px; /* Фиксированная высота */
-      padding: 0; /* Убираем внутренние отступы */
-      color: var(--bg);
-      font-size: 14px; /* Размер шрифта для иконки */
-      cursor: pointer;
-      transition: 0.25s;
-      display: inline-flex; /* Используем flex для центрирования */
-      align-items: center; /* Центрируем по вертикали */
-      justify-content: center; /* Центрируем по горизонтали */
-      margin: 2px; /* Небольшой отступ между кнопками */
-    }
-    .action-btn:hover {
-      opacity: 0.8;
-    }
-    .comment-input {
-      background: var(--card);
-      border: 1px solid #333;
-      border-radius: 6px;
-      padding: 6px 10px;
-      color: var(--text);
-      font-size: 14px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .comment-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-    .loading {
-      pointer-events: none;
-      opacity: 0.7;
-    }
-    .success-message {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #28a745;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-    .error-message {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #ff4757;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-    .header-controls h1 {
-      margin: 0;
-      font-size: 1.8em;
-      white-space: nowrap;
-    }
-    .controls {
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    td {
-      white-space: nowrap;
-    }
-    .drag-over {
-      border-top: 2px solid var(--accent) !important;
-    }
-    .dragging {
-      opacity: 0.5;
-      background-color: #1f1f2a;
-    }
-    .column-header.drag-over-left {
-      border-left: 2px solid var(--accent) !important;
-    }
-    .column-header.drag-over-right {
-      border-right: 2px solid var(--accent) !important;
-    }
-    .reorder-info {
-      font-size: 0.8em;
-      color: #888;
-      margin-top: 5px;
-      font-style: italic;
-    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:20px;font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1400px;margin:0 auto}
+    .header-controls{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin-bottom:20px}
+    .controls{display:flex;gap:12px;flex-wrap:wrap}
+    .btn{background:var(--accent);border:0;border-radius:8px;padding:10px 20px;color:var(--bg);font-size:14px;font-weight:bold;cursor:pointer;transition:.25s;display:flex;align-items:center;gap:8px}
+    .btn:hover{opacity:.8}
+    .btn.reset{background:var(--danger)}
+    #dateFilter{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+    #dateFilter input[type=date]{background:var(--card);border:0;border-radius:8px;padding:8px 12px;color:var(--text);font-size:16px;cursor:pointer}
+    .quickDate{background:var(--accent);border:0;border-radius:8px;padding:8px 16px;color:var(--bg);font-size:14px;cursor:pointer}
+    .quickDate:hover{opacity:.8}
+    .reorder-info{font-size:.8em;color:#888;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px;text-align:left;border-bottom:1px solid #333;white-space:nowrap}
+    th{background:#121218;color:var(--accent);cursor:col-resize;user-select:none;position:relative}
+    th::after{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:var(--accent);opacity:.3}
+    th:hover::after{opacity:.8}
+    tr:hover{background:#1f1f2a}
+    .action-btn{background:var(--accent);border:0;border-radius:50%;width:30px;height:30px;color:var(--bg);font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin:2px}
+    .action-btn:hover{opacity:.8}
+    .comment-input{background:var(--card);border:1px solid #333;border-radius:6px;padding:6px 10px;color:var(--text);width:100%}
+    .comment-input:focus{outline:none;border-color:var(--accent)}
+    .loading{opacity:.7;pointer-events:none}
+    .drag-over{border-top:2px solid var(--accent)!important}
+    .dragging{opacity:.5;background:#1f1f2a}
+    .success-message,.warning-message{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:5px;color:#fff;z-index:1000}
+    .success-message{background:var(--success)}
+    .warning-message{background:#ff9800}
   </style>
 </head>
 <body>
@@ -196,553 +50,301 @@
     <div class="header-controls">
       <h1>📊 Централизованная панель статистики</h1>
       <div class="controls">
-        <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> Обновить статистику</button>
-        <button class="btn reset" id="resetAllSheetsBtn"><i class="fas fa-trash-alt"></i> Сбросить всю статистику</button>
+        <button class="btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> Обновить</button>
+        <button class="btn reset" id="resetAllSheetsBtn"><i class="fas fa-trash"></i> Сбросить всё в таблице</button>
       </div>
     </div>
-    <p class="reorder-info">Перетаскивайте строки для изменения порядка. Перетаскивайте заголовки столбцов влево/вправо для изменения порядка столбцов. Порядок сохраняется при перезагрузке.</p>
+
+    <!-- Блок фильтра по датам -->
+    <div id="dateFilter">
+      <i class="fa-solid fa-calendar-days" style="font-size:1.3em;color:var(--accent)"></i>
+      <input type="date" id="datePicker">
+      <button class="quickDate" data-offset="-2">Позавчера</button>
+      <button class="quickDate" data-offset="-1">Вчера</button>
+      <button class="quickDate" data-offset="0">Сегодня</button>
+    </div>
+
+    <p class="reorder-info">Перетаскивайте строки и заголовки столбцов для изменения порядка. Порядок сохраняется после перезагрузки.</p>
+
     <table id="sitesTable">
       <thead>
-        <tr id="tableHeaderRow">
-          <!-- Headers will be populated by JS -->
-        </tr>
+        <tr id="tableHeaderRow"></tr>
       </thead>
-      <tbody id="tableBody">
-        <!-- Rows will be populated by JS -->
-      </tbody>
+      <tbody id="tableBody"></tbody>
     </table>
   </div>
 
+  <!-- ===== Скрипты ===== -->
   <script>
-    // ===== НАСТРОЙКИ =====
+    /* ========== НАСТРОЙКИ ========== */
     const API_KEY = 'AIzaSyDpZhPrGTvEnWfpe32sOWs37UlApmwcclI';
     const SPREADSHEET_ID = '10W4LpgK3NGElOv0O1nnTw92cyCeBMAtnFX0dDMOEAjU';
     const DATA_RANGE = 'data!A:F';
     const COMMENTS_RANGE = 'comments!A:B';
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQoTQPStRV0ZUr5s3EFAtvgC62jbVjH2cp8VLrMPKBi3vDkoAmafVb_fC4L-jw0LBZ/exec';
 
-    // ===== КЛЮЧИ ДЛЯ LOCAL STORAGE =====
-    const COLUMN_ORDER_KEY = 'statsPanelColumnOrder';
-    const ROW_ORDER_KEY = 'statsPanelRowOrder';
+    /* ========== КЛЮЧИ LOCALSTORAGE ========== */
+    const COLUMN_ORDER_KEY = 'statsPanelColumnOrder_v2';
+    const ROW_ORDER_KEY    = 'statsPanelRowOrder_v2';
 
-    // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
-    let rawData = [];
-    let comments = {};
-    let isResizing = false;
-    let currentColumn = null;
-    let startX = 0;
-    let startWidth = 0;
+    /* ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ========== */
+    let rawData   = [];
+    let comments  = {};
     let tableData = [];
-    // Обновляем columnOrder для включения колонки 'actions' (куда добавим и шестерёнку)
-    let columnOrder = ['site', 'visits', 'clicks', 'comment', 'actions'];
-    let rowOrder = [];
+    let columnOrder = ['site','visits','clicks','comment','actions'];
+    let rowOrder    = [];
 
-    // ===== ИНИЦИАЛИЗАЦИЯ =====
-    async function init() {
-      document.getElementById('refreshBtn').addEventListener('click', loadData);
+    /* ========== ИНИЦИАЛИЗАЦИЯ ========== */
+    window.addEventListener('DOMContentLoaded', init);
+    function init(){
+      document.getElementById('refreshBtn').addEventListener('click', loadStats);
       document.getElementById('resetAllSheetsBtn').addEventListener('click', resetAllStatsInSheets);
+      document.getElementById('datePicker').addEventListener('change', dateChanged);
+      document.querySelectorAll('.quickDate').forEach(btn=>{
+        btn.addEventListener('click', ()=>setQuickDate(parseInt(btn.dataset.offset)));
+      });
       loadSavedOrder();
-      await loadData();
+      loadStats();
     }
 
-    // ===== ЗАГРУЗКА ДАННЫХ =====
-    async function loadData() {
+    /* ========== ЗАГРУЗКА ДАННЫХ ========== */
+    async function loadStats(){
       document.body.classList.add('loading');
-      // УБРАНО: showMessage('Загрузка данных...', 'warning');
-      loadSavedOrder();
-
-      try {
-        const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`;
-        const dataRes = await fetch(dataUrl);
+      try{
+        /* ---- основные данные ---- */
+        const dataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${DATA_RANGE}?key=${API_KEY}`);
         const data = await dataRes.json();
-        if (!data.values || data.values.length < 2) {
-          showError('В таблице нет данных');
-          return;
-        }
+        if(!data.values || data.values.length<2){ showError('Нет данных'); return; }
         rawData = data.values.slice(1);
 
-        const commentsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`;
-        const commentsRes = await fetch(commentsUrl);
-        const commentsData = await commentsRes.json();
-        comments = {};
-        if (commentsData.values && commentsData.values.length > 1) {
-          for (let i = 1; i < commentsData.values.length; i++) {
-            const [site, comment] = commentsData.values[i];
-            if (site) comments[site] = comment || '';
-          }
+        /* ---- комментарии ---- */
+        const comRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${COMMENTS_RANGE}?key=${API_KEY}`);
+        const com = await comRes.json();
+        comments={};
+        if(com.values && com.values.length>1){
+          com.values.slice(1).forEach(([site,comment])=>{ if(site) comments[site]=comment||''; });
         }
 
         await processTableData();
         renderTable();
-        initDragAndDrop(); // Инициализируем перетаскивание после рендеринга
-
-      } catch (err) {
-        console.error(err);
-        showError('Ошибка загрузки данных: ' + err.message);
-      } finally {
+      }catch(e){
+        showError('Ошибка загрузки: '+e.message);
+      }finally{
         document.body.classList.remove('loading');
       }
     }
 
-    // ===== СОХРАНЕНИЕ ПОРЯДКА =====
-    function saveColumnOrder() {
-      debounce('saveColumnOrder', () => {
-        try {
-          localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(columnOrder));
-        } catch (e) {
-          console.error("Не удалось сохранить порядок столбцов в localStorage", e);
-        }
-      }, 500);
-    }
-
-    function saveRowOrder() {
-      debounce('saveRowOrder', () => {
-        try {
-          localStorage.setItem(ROW_ORDER_KEY, JSON.stringify(rowOrder));
-        } catch (e) {
-          console.error("Не удалось сохранить порядок строк в localStorage", e);
-        }
-      }, 500);
-    }
-
-    function loadSavedOrder() {
-      try {
-        const savedColumnOrder = localStorage.getItem(COLUMN_ORDER_KEY);
-        if (savedColumnOrder) {
-          columnOrder = JSON.parse(savedColumnOrder);
-        }
-      } catch (e) {
-        console.error("Не удалось загрузить порядок столбцов из localStorage", e);
-        // columnOrder остается по умолчанию
-      }
-      try {
-        const savedRowOrder = localStorage.getItem(ROW_ORDER_KEY);
-        if (savedRowOrder) {
-          rowOrder = JSON.parse(savedRowOrder);
-        }
-      } catch (e) {
-        console.error("Не удалось загрузить порядок строк из localStorage", e);
-        rowOrder = [];
-      }
-    }
-
-    // ===== ОБРАБОТКА ДАННЫХ ДЛЯ ТАБЛИЦЫ =====
-    async function processTableData(selectedDate = new Date().toISOString().split('T')[0]) {
-      const stats = {};
-      const allSites = [...new Set(rawData.map(row => row[0]))];
-
-      // Инициализация
-      allSites.forEach(site => {
-        if (!stats[site]) {
-          stats[site] = { visits: 0, clicks: 0, hasData: false };
-        }
-      });
-
-      // Обработка данных: [site, visits, clicks, timestamp, dateOnly]
-      for (let i = 0; i < rawData.length; i++) {
-        const [site, v, c, , dateOnly] = rawData[i];
-        const rowDate = dateOnly;
-        if (selectedDate && rowDate !== selectedDate) continue;
-        if (stats[site]) {
-          stats[site].visits += parseInt(v) || 0;
-          stats[site].clicks += parseInt(c) || 0;
+    /* ========== ОБРАБОТКА ДАННЫХ ========== */
+    async function processTableData(selectedDate = new Date().toISOString().split('T')[0]){
+      const stats={};
+      const sites=[...new Set(rawData.map(r=>r[0]))];
+      sites.forEach(s=>stats[s]={visits:0,clicks:0,hasData:false});
+      rawData.forEach(([site,v,c,,dateOnly])=>{
+        if(selectedDate && dateOnly!==selectedDate) return;
+        if(stats[site]){
+          stats[site].visits += parseInt(v)||0;
+          stats[site].clicks += parseInt(c)||0;
           stats[site].hasData = true;
         }
-      }
-
-      // Формирование таблицы
-      tableData = Object.entries(stats).map(([site, d]) => ({
-        site: site,
-        visits: d.visits,
-        clicks: d.clicks,
-        comment: comments[site] || '',
-        hasData: d.hasData
+      });
+      tableData = Object.entries(stats).map(([site,d])=>({
+        site,
+        visits:d.visits,
+        clicks:d.clicks,
+        comment:comments[site]||'',
+        hasData:d.hasData
       }));
-
-      // Применение порядка строк
-      if (rowOrder.length > 0) {
-        tableData.sort((a, b) => {
-          const indexA = rowOrder.indexOf(a.site);
-          const indexB = rowOrder.indexOf(b.site);
-          if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-          if (indexA !== -1) return -1;
-          if (indexB !== -1) return 1;
+      /* применяем сохранённый порядок строк */
+      if(rowOrder.length){
+        tableData.sort((a,b)=>{
+          const ia=rowOrder.indexOf(a.site);
+          const ib=rowOrder.indexOf(b.site);
+          if(ia!==-1 && ib!==-1) return ia-ib;
+          if(ia!==-1) return -1;
+          if(ib!==-1) return 1;
           return 0;
         });
       }
     }
 
-    // ===== РЕНДЕРИНГ ТАБЛИЦЫ =====
-    function renderTableHeader() {
-      const theadRow = document.getElementById('tableHeaderRow');
-      theadRow.innerHTML = '';
-      for (let i = 0; i < columnOrder.length; i++) {
-        const colId = columnOrder[i];
-        const th = document.createElement('th');
-        th.className = 'column-header';
-        th.draggable = true;
-        th.dataset.columnId = colId;
-        switch (colId) {
-          case 'site': th.textContent = 'Сайт'; th.style.width = '200px'; break;
-          case 'visits': th.textContent = 'Визиты'; th.style.width = '100px'; break;
-          case 'clicks': th.textContent = 'Клики WhatsApp'; th.style.width = '120px'; break;
-          case 'comment': th.textContent = 'Комментарий'; th.style.width = '250px'; break;
-          case 'actions': th.textContent = 'Действия'; th.style.width = '120px'; break; // Ширина для двух кнопок
-          default: th.textContent = colId;
-        }
-        theadRow.appendChild(th);
-      }
+    /* ========== РЕНДЕРИНГ ========== */
+    function renderTable(){
+      renderHeader();
+      renderBody();
+      initDragAndDrop();
     }
-
-    function renderTableBody() {
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = '';
-      for (let i = 0; i < tableData.length; i++) {
-        const item = tableData[i];
-        const tr = document.createElement('tr');
-        tr.draggable = true;
-        tr.dataset.site = item.site;
-
-        for (let j = 0; j < columnOrder.length; j++) {
-          const colId = columnOrder[j];
-          const td = document.createElement('td');
-          switch (colId) {
-            case 'site':
-              td.textContent = item.site;
-              break;
-            case 'visits':
-              td.textContent = item.visits;
-              break;
-            case 'clicks':
-              td.textContent = item.clicks;
-              break;
+    function renderHeader(){
+      const tr=document.getElementById('tableHeaderRow');
+      tr.innerHTML='';
+      columnOrder.forEach(col=>{
+        const th=document.createElement('th');
+        th.className='column-header'; th.draggable=true; th.dataset.columnId=col;
+        switch(col){
+          case 'site': th.textContent='Сайт'; break;
+          case 'visits': th.textContent='Визиты'; break;
+          case 'clicks': th.textContent='Клики WA'; break;
+          case 'comment': th.textContent='Комментарий'; break;
+          case 'actions': th.textContent='Действия'; break;
+        }
+        tr.appendChild(th);
+      });
+    }
+    function renderBody(){
+      const tbody=document.getElementById('tableBody');
+      tbody.innerHTML='';
+      tableData.forEach(item=>{
+        const tr=document.createElement('tr');
+        tr.draggable=true; tr.dataset.site=item.site;
+        columnOrder.forEach(col=>{
+          const td=document.createElement('td');
+          switch(col){
+            case 'site': td.textContent=item.site; break;
+            case 'visits': td.textContent=item.visits; break;
+            case 'clicks': td.textContent=item.clicks; break;
             case 'comment':
-              const input = document.createElement('input');
-              input.type = 'text';
-              input.className = 'comment-input';
-              input.value = item.comment || '';
-              input.dataset.site = item.site;
-              input.addEventListener('input', debounce((e) => {
-                saveComment(e.target.dataset.site, e.target.value);
-              }, 500));
-              td.appendChild(input);
+              const inp=document.createElement('input');
+              inp.type='text'; inp.className='comment-input'; inp.value=item.comment;
+              inp.addEventListener('change',e=>saveComment(item.site,e.target.value));
+              td.appendChild(inp);
               break;
             case 'actions':
-              // Изменяем этот блок для добавления двух кнопок
-              const eraseBtn = document.createElement('button');
-              eraseBtn.className = 'action-btn';
-              eraseBtn.title = 'Сбросить';
-              eraseBtn.innerHTML = '<i class="fas fa-eraser"></i>';
-              eraseBtn.onclick = () => resetSiteStats(item.site);
-
-              const gearBtn = document.createElement('button');
-              gearBtn.className = 'action-btn';
-              gearBtn.title = 'Настройки';
-              gearBtn.innerHTML = '⚙️';
-              gearBtn.onclick = () => openSettingsModal(item.site); // openSettingsModal будет доступна из settings-panel.js
-
-              td.appendChild(eraseBtn);
-              td.appendChild(gearBtn);
+              const btnReset=document.createElement('button');
+              btnReset.className='action-btn'; btnReset.title='Сбросить'; btnReset.innerHTML='🗑';
+              btnReset.onclick=()=>resetSiteStats(item.site);
+              const btnGear=document.createElement('button');
+              btnGear.className='action-btn'; btnGear.title='Настройки'; btnGear.innerHTML='⚙️';
+              btnGear.onclick=()=>openSettingsModal(item.site);
+              td.append(btnReset,btnGear);
               break;
-            default:
-              td.textContent = item[colId] || '';
           }
           tr.appendChild(td);
-        }
+        });
         tbody.appendChild(tr);
-      }
+      });
     }
 
-    function renderTable() {
-      renderTableHeader();
-      renderTableBody();
-    }
-
-    // ===== ПЕРЕТАСКИВАНИЕ СТРОК И СТОЛБЦОВ =====
-    function initDragAndDrop() {
-      // ===== ПЕРЕТАСКИВАНИЕ СТРОК =====
-      const tbody = document.getElementById('tableBody');
-      let draggedRow = null;
-
-      tbody.querySelectorAll('tr').forEach(row => {
-        row.addEventListener('dragstart', (e) => {
-          draggedRow = row;
-          row.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-        });
-
-        row.addEventListener('dragend', (e) => {
-          row.classList.remove('dragging');
-          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-          draggedRow = null;
-        });
-
-        row.addEventListener('dragover', (e) => {
+    /* ========== DRAG & DROP ========== */
+    function initDragAndDrop(){
+      /* ----- строки ----- */
+      const tbody=document.getElementById('tableBody');
+      let draggedRow=null;
+      tbody.querySelectorAll('tr').forEach(row=>{
+        row.addEventListener('dragstart',e=>{ draggedRow=row; row.classList.add('dragging'); });
+        row.addEventListener('dragend',e=>row.classList.remove('dragging'));
+        row.addEventListener('dragover',e=>e.preventDefault());
+        row.addEventListener('dragenter',e=>{ if(row!==draggedRow) row.classList.add('drag-over'); });
+        row.addEventListener('dragleave',e=>row.classList.remove('drag-over'));
+        row.addEventListener('drop',e=>{
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        });
-
-        row.addEventListener('dragenter', (e) => {
-          e.preventDefault();
-          if (row !== draggedRow) {
-            row.classList.add('drag-over');
-          }
-        });
-
-        row.addEventListener('dragleave', (e) => {
-          row.classList.remove('drag-over');
-        });
-
-        row.addEventListener('drop', (e) => {
-          e.preventDefault();
-          row.classList.remove('drag-over');
-          if (draggedRow && draggedRow !== row) {
-            const rect = row.getBoundingClientRect();
-            const nextSibling = (e.clientY - rect.top) / (rect.bottom - rect.top) < 0.5 ? row : row.nextSibling;
-            tbody.insertBefore(draggedRow, nextSibling);
+          if(draggedRow && draggedRow!==row){
+            const rect=row.getBoundingClientRect();
+            const next=e.clientY-rect.top<rect.height/2?row:row.nextSibling;
+            tbody.insertBefore(draggedRow,next);
             updateRowOrderFromDOM();
             saveRowOrder();
           }
+          [...tbody.children].forEach(r=>r.classList.remove('drag-over'));
         });
       });
 
-      // ===== ПЕРЕТАСКИВАНИЕ ЗАГОЛОВКОВ СТОЛБЦОВ =====
-      const headers = document.querySelectorAll('.column-header');
-      let draggedHeader = null;
-
-      for (let i = 0; i < headers.length; i++) {
-        const header = headers[i];
-        if (!header.style.width) {
-          header.style.width = header.offsetWidth + 'px';
-        }
-
-        header.addEventListener('dragstart', (e) => {
-          draggedHeader = header;
-          header.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
+      /* ----- колонки ----- */
+      const headers=document.querySelectorAll('.column-header');
+      let draggedHeader=null;
+      headers.forEach(th=>{
+        th.addEventListener('dragstart',e=>{ draggedHeader=th; th.classList.add('dragging'); });
+        th.addEventListener('dragend',e=>th.classList.remove('dragging'));
+        th.addEventListener('dragover',e=>e.preventDefault());
+        th.addEventListener('dragenter',e=>{
+          if(th===draggedHeader) return;
+          const rect=th.getBoundingClientRect();
+          const side=e.clientX<rect.left+rect.width/2?'left':'right';
+          th.classList.add('drag-over-'+side);
         });
-
-        header.addEventListener('dragend', (e) => {
-          header.classList.remove('dragging');
-          document.querySelectorAll('.column-header').forEach(h => h.classList.remove('drag-over-left', 'drag-over-right'));
-          draggedHeader = null;
-        });
-
-        header.addEventListener('dragover', (e) => {
+        th.addEventListener('dragleave',e=>th.classList.remove('drag-over-left','drag-over-right'));
+        th.addEventListener('drop',e=>{
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
+          th.classList.remove('drag-over-left','drag-over-right');
+          if(!draggedHeader || draggedHeader===th) return;
+          const from=columnOrder.indexOf(draggedHeader.dataset.columnId);
+          const to=columnOrder.indexOf(th.dataset.columnId);
+          if(from===-1||to===-1) return;
+          const rect=th.getBoundingClientRect();
+          const insert=e.clientX<rect.left+rect.width/2?to:to+1;
+          const final=from<insert?insert-1:insert;
+          columnOrder.splice(from,1);
+          columnOrder.splice(final,0,draggedHeader.dataset.columnId);
+          renderTable(); saveColumnOrder();
         });
-
-        header.addEventListener('dragenter', (e) => {
-          e.preventDefault();
-          if (header !== draggedHeader) {
-            const rect = header.getBoundingClientRect();
-            if (e.clientX - rect.left < rect.width / 2) {
-              header.classList.add('drag-over-left');
-            } else {
-              header.classList.add('drag-over-right');
-            }
-          }
-        });
-
-        header.addEventListener('dragleave', (e) => {
-          header.classList.remove('drag-over-left', 'drag-over-right');
-        });
-
-        header.addEventListener('drop', (e) => {
-          e.preventDefault();
-          header.classList.remove('drag-over-left', 'drag-over-right');
-          if (draggedHeader && draggedHeader !== header) {
-            const oldIndex = columnOrder.indexOf(draggedHeader.dataset.columnId);
-            const newIndex = columnOrder.indexOf(header.dataset.columnId);
-            if (oldIndex !== -1 && newIndex !== -1) {
-              const movedItem = columnOrder.splice(oldIndex, 1)[0];
-              const insertIndex = e.clientX < header.getBoundingClientRect().left + header.offsetWidth / 2 ? newIndex : newIndex + 1;
-              const finalIndex = oldIndex < insertIndex ? insertIndex - 1 : insertIndex;
-              columnOrder.splice(finalIndex, 0, movedItem);
-              renderTable();
-              saveColumnOrder();
-            }
-          }
-        });
-
-        header.addEventListener('mousedown', (e) => {
-          if (e.offsetX > header.offsetWidth - 10) {
-            isResizing = true;
-            currentColumn = header;
-            startX = e.pageX;
-            startWidth = header.offsetWidth;
-            document.body.style.cursor = 'col-resize';
-            document.body.classList.add('resizing');
-            e.preventDefault();
-          }
-        });
-      }
+      });
     }
 
-    function updateRowOrderFromDOM() {
-      const tbody = document.getElementById('tableBody');
-      rowOrder = Array.from(tbody.children).map(row => row.dataset.site);
+    /* ========== СОХРАНЕНИЕ/ЗАГРУЗКА ПОРЯДКА ========== */
+    function loadSavedOrder(){
+      try{
+        const c=localStorage.getItem(COLUMN_ORDER_KEY);
+        if(c) columnOrder=JSON.parse(c);
+        const r=localStorage.getItem(ROW_ORDER_KEY);
+        if(r) rowOrder=JSON.parse(r);
+      }catch(e){console.error(e);}
+    }
+    function saveColumnOrder(){ localStorage.setItem(COLUMN_ORDER_KEY,JSON.stringify(columnOrder)); }
+    function saveRowOrder(){ localStorage.setItem(ROW_ORDER_KEY,JSON.stringify(rowOrder)); }
+    function updateRowOrderFromDOM(){
+      rowOrder=[...document.getElementById('tableBody').children].map(r=>r.dataset.site);
     }
 
-    // ===== ДЕБАУНС =====
-    let debounceTimers = {};
-    function debounce(id, func, delay) {
-      if (debounceTimers[id]) {
-        clearTimeout(debounceTimers[id]);
-      }
-      debounceTimers[id] = setTimeout(func, delay);
-    }
-
-    // ===== СБРОС СТАТИСТИКИ САЙТА =====
-    async function resetSiteStats(site) {
-      if (!confirm(`Вы уверены, что хотите сбросить статистику для сайта ${site}?`)) return;
+    /* ========== СБРОС СТАТИСТИКИ ========== */
+    async function resetSiteStats(site){
+      if(!confirm(`Сбросить статистику для «${site}» в таблице?`)) return;
       document.body.classList.add('loading');
-      // УБРАНО: showMessage(`Сбрасываем статистику для ${site}...`, 'warning');
-      const form = new URLSearchParams();
-      form.append('action', 'resetSiteStats');
-      form.append('site', site);
-      try {
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: form
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const txt = await res.text();
-        let data;
-        try {
-          data = JSON.parse(txt);
-        } catch (e) {
-          console.error("Raw response:", txt);
-          throw new Error("Неверный формат ответа от сервера");
-        }
-        if (data.status !== 'success') throw new Error(data.message);
-        // УБРАНО: showMessage(`Статистика для ${site} сброшена!`);
-        await loadData(); // Перезагружаем данные
-      } catch (err) {
-        console.error(err);
-        // УБРАНО: showMessage(`Ошибка при сбросе статистики для ${site}: ${err.message}`, 'warning');
-      } finally {
-        document.body.classList.remove('loading');
-      }
+      const form=new URLSearchParams();
+      form.append('action','resetSiteStats'); form.append('site',site);
+      try{
+        const res=await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
+        const txt=await res.text(); const data=JSON.parse(txt);
+        if(data.status!=='success') throw new Error(data.message);
+        loadStats();
+      }catch(e){alert(e.message)}finally{document.body.classList.remove('loading')}
+    }
+    async function resetAllStatsInSheets(){
+      if(!confirm('Сбросить ВСЮ статистику в таблице?')) return;
+      document.body.classList.add('loading');
+      const form=new URLSearchParams(); form.append('action','resetAllStats');
+      try{
+        const res=await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
+        const txt=await res.text(); const data=JSON.parse(txt);
+        if(data.status!=='success') throw new Error(data.message);
+        loadStats();
+      }catch(e){alert(e.message)}finally{document.body.classList.remove('loading')}
     }
 
-    // ===== СОХРАНЕНИЕ КОММЕНТАРИЯ =====
-    async function saveComment(site, comment) {
-      const form = new URLSearchParams();
-      form.append('action', 'saveComment');
-      form.append('site', site);
-      form.append('comment', comment);
-      try {
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: form
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const txt = await res.text();
-        let data;
-        try {
-          data = JSON.parse(txt);
-        } catch (e) {
-          console.error("Raw response:", txt);
-          throw new Error("Неверный формат ответа от сервера");
-        }
-        if (data.status !== 'success') throw new Error(data.message);
-        // УБРАНО: showMessage('Комментарий сохранён!');
-      } catch (err) {
-        console.error(err);
-        // УБРАНО: showMessage('Ошибка сохранения комментария: ' + err.message, 'warning');
-      }
+    /* ========== СОХРАНЕНИЕ КОММЕНТАРИЯ ========== */
+    async function saveComment(site,comment){
+      const form=new URLSearchParams();
+      form.append('action','saveComment'); form.append('site',site); form.append('comment',comment);
+      try{
+        const res=await fetch(APPS_SCRIPT_URL,{method:'POST',body:form});
+        const txt=await res.text(); const data=JSON.parse(txt);
+        if(data.status!=='success') throw new Error(data.message);
+      }catch(e){alert(e.message)}
     }
 
-    // ===== СБРОС ВСЕЙ СТАТИСТИКИ В ТАБЛИЦЕ =====
-    async function resetAllStatsInSheets() {
-      if (!confirm('Вы уверены, что хотите сбросить ВСЮ статистику для ВСЕХ сайтов? Это действие нельзя отменить.')) return;
-      try {
-        document.body.classList.add('loading');
-        // УБРАНО: showMessage('Сбрасываем всю статистику в таблице...', 'warning');
-        const form = new URLSearchParams();
-        form.append('action', 'resetAllStats');
-        const res = await fetch(APPS_SCRIPT_URL.trim(), {
-          method: 'POST',
-          body: form
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const txt = await res.text();
-        let data;
-        try {
-          data = JSON.parse(txt);
-        } catch (e) {
-          console.error("Raw response:", txt);
-          throw new Error("Неверный формат ответа от сервера");
-        }
-        if (data.status !== 'success') throw new Error(data.message);
-        // УБРАНО: showMessage('Вся статистика сброшена!');
-        await loadData(); // Перезагружаем данные
-      } catch (error) {
-        console.error(error);
-        // УБРАНО: showMessage('Ошибка при сбросе статистики: ' + error.message, 'warning');
-      } finally {
-        document.body.classList.remove('loading');
-      }
+    /* ========== УПРАВЛЕНИЕ ДАТОЙ ========== */
+    function setQuickDate(offset){
+      const d=new Date(); d.setDate(d.getDate()+offset);
+      document.getElementById('datePicker').valueAsDate=d;
+      dateChanged();
+    }
+    async function dateChanged(){
+      await processTableData(document.getElementById('datePicker').value);
+      renderTable();
     }
 
-    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-    // function showMessage(message, type = 'success') { // Удалено
-    //   hideMessage();
-    //   const messageDiv = document.createElement('div');
-    //   messageDiv.className = type === 'success' ? 'success-message' : 'success-message'; // Изменено: всегда success-message
-    //   messageDiv.textContent = message;
-    //   messageDiv.id = 'tempMessage';
-    //   document.body.appendChild(messageDiv);
-    //   setTimeout(hideMessage, 3000);
-    // }
-
-    function showError(message) {
-      // УБРАНО: showMessage(message, 'error');
-      console.error(message);
-      alert(message); // Простое уведомление об ошибке
-    }
-
-    // function hideMessage() { // Удалено
-    //   const existingMessage = document.getElementById('tempMessage');
-    //   if (existingMessage) existingMessage.remove();
-    // }
-
-    // ===== ИЗМЕНЕНИЕ РАЗМЕРА КОЛОНОК =====
-    document.addEventListener('mousemove', (e) => {
-      if (isResizing && currentColumn) {
-        const newWidth = startWidth + (e.pageX - startX);
-        if (newWidth > 50) {
-          currentColumn.style.width = newWidth + 'px';
-          const columnIndex = Array.from(currentColumn.parentNode.children).indexOf(currentColumn);
-          const rows = document.querySelectorAll('#sitesTable tr');
-          for (let i = 0; i < rows.length; i++) {
-            const cell = rows[i].children[columnIndex];
-            if (cell) cell.style.width = newWidth + 'px';
-          }
-        }
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-        document.body.style.cursor = '';
-        document.body.classList.remove('resizing');
-        currentColumn = null;
-      }
-    });
-
-    // ===== ЗАПУСК =====
-    document.addEventListener('DOMContentLoaded', init);
-
+    /* ========== УТИЛИТЫ ========== */
+    function showError(msg){ alert(msg); }
   </script>
 
-  <!-- Подключаем модуль settings-panel.js -->
+  <!-- модуль настроек -->
   <script src="settings-panel.js"></script>
-  </body>
+</body>
 </html>
-
-
-
