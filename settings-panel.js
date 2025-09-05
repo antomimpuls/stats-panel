@@ -139,8 +139,9 @@
     document.getElementById('settingEnableRedirect').checked = enableRedirect;
     document.getElementById('redirectSettings').style.display = enableRedirect ? 'block' : 'none';
     
-    document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage || 100;
-    document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds || 10;
+    // ИСПРАВЛЕНИЕ: Правильная обработка значений 0 в populateForm
+    document.getElementById('settingRedirectPercentage').value = settings.redirectPercentage !== undefined ? settings.redirectPercentage : 100;
+    document.getElementById('settingRedirectDelaySeconds').value = settings.redirectDelaySeconds !== undefined ? settings.redirectDelaySeconds : 10;
   }
 
   function setupRedirectToggle() {
