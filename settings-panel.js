@@ -248,8 +248,13 @@
       
       // Настройки редиректа
       obj.enableRedirect = document.getElementById('settingEnableRedirect').checked;
-      obj.redirectPercentage = parseInt(document.getElementById('settingRedirectPercentage').value) || 100;
-      obj.redirectDelaySeconds = parseInt(document.getElementById('settingRedirectDelaySeconds').value) || 10;
+      
+      // ИСПРАВЛЕНИЕ: Правильная обработка значений 0
+      const percentage = parseInt(document.getElementById('settingRedirectPercentage').value);
+      obj.redirectPercentage = isNaN(percentage) ? 100 : percentage;
+      
+      const delaySeconds = parseInt(document.getElementById('settingRedirectDelaySeconds').value);
+      obj.redirectDelaySeconds = isNaN(delaySeconds) ? 10 : delaySeconds;
       
       const newSrc = replaceSettings(content, obj);
       await saveFile(newSrc, sha);
